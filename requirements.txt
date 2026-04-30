@@ -1,0 +1,16 @@
+streamlit>=1.40.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.3.0
+langchain-community>=0.3.0
+langchain-experimental>=0.3.0
+langgraph>=0.3.0
+ddgs>=9.0.0
+wikipedia>=1.4.0
+arxiv>=2.1.0
+python-dotenv>=1.0.0
+
+# RAG over uploaded documents
+pypdf>=5.1.0
+fastembed>=0.4.0
+faiss-cpu>=1.9.0

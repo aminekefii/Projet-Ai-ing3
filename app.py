@@ -1,0 +1,204 @@
+import os
+import uuid
+
+import streamlit as st
+from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.checkpoint.memory import MemorySaver
+
+from agent.graph import build_agent
+
+load_dotenv()
+
+st.set_page_config(
+    page_title="Research Assistant Agent",
+    page_icon="🔬",
+    layout="wide",
+)
+
+OPENAI_MODELS = [
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+    "gpt-5.4",
+    "gpt-5.5",
+    "gpt-4.1-nano",
+    "gpt-4o-mini",
+]
+
+if "thread_id" not in st.session_state:
+    st.session_state.thread_id = str(uuid.uuid4())
+if "checkpointer" not in st.session_state:
+    st.session_state.checkpointer = MemorySaver()
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "model" not in st.session_state:
+    st.session_state.model = OPENAI_MODELS[0]
+elif st.session_state.model not in OPENAI_MODELS:
+    st.session_state.model = OPENAI_MODELS[0]
+if "temperature" not in st.session_state:
+    st.session_state.temperature = 0.0
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = None
+if "indexed_files" not in st.session_state:
+    st.session_state.indexed_files = []
+
+
+with st.sidebar:
+    st.title("⚙️ Settings")
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        st.success("OpenAI API key loaded")
+    else:
+        st.error("OPENAI_API_KEY missing — set it in .env")
+
+    st.session_state.model = st.selectbox(
+        "Model",
+        OPENAI_MODELS,
+        index=OPENAI_MODELS.index(st.session_state.model),
+    )
+    st.session_state.temperature = st.slider(
+        "Temperature", 0.0, 1.0, st.session_state.temperature, 0.1
+    )
+
+    if st.button("🗑️ Clear conversation", use_container_width=True):
+        st.session_state.thread_id = str(uuid.uuid4())
+        st.session_state.checkpointer = MemorySaver()
+        st.session_state.history = []
+        st.rerun()
+
+    st.divider()
+    st.markdown("### 📄 Documents (RAG)")
+    uploaded = st.file_uploader(
+        "Upload PDF or TXT",
+        type=["pdf", "txt"],
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+    )
+    if uploaded and st.button("📚 Index documents", use_container_width=True):
+        from agent.rag import index_uploaded_files
+        with st.spinner("Chunking and embedding…"):
+            vs, summary = index_uploaded_files(uploaded)
+        if vs is None:
+            st.warning("No usable text extracted from the uploaded files.")
+        else:
+            st.session_state.vectorstore = vs
+            st.session_state.indexed_files = summary
+            total_chunks = sum(n for _, n in summary)
+            st.success(f"Indexed {len(summary)} file(s), {total_chunks} chunks.")
+
+    if st.session_state.indexed_files:
+        st.markdown("**Indexed:**")
+        for name, n in st.session_state.indexed_files:
+            st.caption(f"• `{name}` — {n} chunks")
+        if st.button("🧹 Clear documents", use_container_width=True):
+            st.session_state.vectorstore = None
+            st.session_state.indexed_files = []
+            st.rerun()
+
+    st.divider()
+    st.markdown("### 🛠️ Available tools")
+    base_tools = (
+        "- **Web search** — DuckDuckGo (live web)\n"
+        "- **Wikipedia** — encyclopedic facts\n"
+        "- **arXiv** — academic papers\n"
+        "- **Python REPL** — math & code execution"
+    )
+    if st.session_state.vectorstore is not None:
+        base_tools += "\n- **Document search** — your uploaded files"
+    st.markdown(base_tools)
+
+    st.divider()
+    st.caption(f"Thread: `{st.session_state.thread_id[:8]}…`")
+
+
+def get_agent():
+    return build_agent(
+        model_name=st.session_state.model,
+        temperature=st.session_state.temperature,
+        checkpointer=st.session_state.checkpointer,
+        vectorstore=st.session_state.vectorstore,
+    )
+
+
+def truncate(text: str, n: int = 1500) -> str:
+    text = str(text)
+    return text if len(text) <= n else text[:n] + "\n\n…(truncated)"
+
+
+st.title("🔬 Research Assistant Agent")
+st.caption("Multi-step research powered by OpenAI + LangGraph. Web · Wikipedia · arXiv · Python · Your documents.")
+
+for entry in st.session_state.history:
+    with st.chat_message(entry["role"]):
+        st.markdown(entry["content"])
+
+user_input = st.chat_input("Ask a research question…")
+
+if user_input:
+    if not os.getenv("OPENAI_API_KEY"):
+        st.error("Cannot run — set OPENAI_API_KEY in your .env file first.")
+        st.stop()
+
+    st.session_state.history.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    with st.chat_message("assistant"):
+        config = {"configurable": {"thread_id": st.session_state.thread_id}}
+        final_text = ""
+        tools_used: list[str] = []
+        agent = get_agent()
+
+        try:
+            for chunk in agent.stream(
+                {"messages": [HumanMessage(content=user_input)]},
+                config=config,
+                stream_mode="updates",
+            ):
+                for _node, payload in chunk.items():
+                    if not isinstance(payload, dict):
+                        continue
+                    for msg in payload.get("messages", []):
+                        if isinstance(msg, AIMessage):
+                            for tc in (msg.tool_calls or []):
+                                name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", "?")
+                                args = tc.get("args", {}) if isinstance(tc, dict) else getattr(tc, "args", {})
+                                tools_used.append(name)
+                                with st.status(
+                                    f"🛠️ Calling `{name}`",
+                                    expanded=False,
+                                ) as status:
+                                    st.json(args)
+                                    status.update(state="complete")
+                            if msg.content:
+                                final_text = msg.content
+                                st.markdown(msg.content)
+                        elif isinstance(msg, ToolMessage):
+                            with st.status(
+                                f"📥 `{msg.name}` returned",
+                                expanded=False,
+                            ) as status:
+                                st.markdown(truncate(msg.content))
+                                status.update(state="complete")
+
+            if tools_used:
+                summary = ", ".join(f"`{t}`" for t in tools_used)
+                st.success(f"✅ Grounded in {len(tools_used)} tool call(s): {summary}")
+            else:
+                st.warning("⚠️ Answered without invoking any tool — response is from the model's own knowledge.")
+        except Exception as e:
+            err = f"⚠️ Agent error: `{type(e).__name__}` — {e}"
+            st.error(err)
+            final_text = err
+
+        # Persist the answer + a one-line tool footer so it stays visible after rerun
+        footer = ""
+        if tools_used:
+            footer = f"\n\n---\n_✅ Grounded in {len(tools_used)} tool call(s): {', '.join(f'`{t}`' for t in tools_used)}_"
+        elif final_text and not final_text.startswith("⚠️"):
+            footer = "\n\n---\n_⚠️ Answered without tools — from the model's own knowledge._"
+
+        st.session_state.history.append(
+            {"role": "assistant", "content": (final_text or "_(no answer produced)_") + footer}
+        )

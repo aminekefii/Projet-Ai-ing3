@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe -m streamlit run app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:8501/)",
+      "Bash(curl -s \"http://localhost:8501/_stcore/health\")",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"Streamlit HTTP %{http_code}\\\\n\" http://localhost:8501/)"
+    ]
+  }
+}
