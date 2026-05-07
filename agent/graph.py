@@ -5,9 +5,11 @@ from langgraph.prebuilt import create_react_agent
 from .prompts import get_prompt
 from .tools import build_tools
 
+DEFAULT_MODEL = "gpt-5.4-mini"
+
 
 def build_agent(
-    model_name: str = "gpt-5.4-mini",
+    model_name: str = DEFAULT_MODEL,
     temperature: float = 0.0,
     checkpointer: MemorySaver | None = None,
     vectorstore=None,

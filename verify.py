@@ -21,14 +21,13 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 
-from agent.graph import build_agent
+from agent.graph import DEFAULT_MODEL as MODEL, build_agent
 from agent.prompts import get_prompt
 from agent.rag import chunk_documents, get_embeddings, load_pdf
 from agent.tools import arxiv, build_tools, python_repl, web_search, wikipedia
 
 PASSED: list[str] = []
 FAILED: list[tuple[str, str]] = []
-MODEL = "gpt-5.4-mini"
 
 
 def header(title: str) -> None:

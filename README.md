@@ -1,6 +1,6 @@
 # 🔬 Research Assistant Agent
 
-Autonomous research assistant built for the **Cahier de charge — Option 3 (Agent IA, /20)**,
+Autonomous research assistant built for the 
 augmented with a RAG pipeline for user-uploaded documents.
 
 The agent plans multi-step research, picks the right tool for each sub-question,

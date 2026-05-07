@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 
-from agent.graph import build_agent
+from agent.graph import DEFAULT_MODEL, build_agent
 
 load_dotenv()
 
@@ -15,8 +15,6 @@ st.set_page_config(
     page_icon="🔬",
     layout="wide",
 )
-
-DEFAULT_MODEL = "gpt-5.4-mini"
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
