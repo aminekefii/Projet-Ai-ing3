@@ -16,14 +16,7 @@ st.set_page_config(
     layout="wide",
 )
 
-OPENAI_MODELS = [
-    "gpt-5.4-mini",
-    "gpt-5.4-nano",
-    "gpt-5.4",
-    "gpt-5.5",
-    "gpt-4.1-nano",
-    "gpt-4o-mini",
-]
+DEFAULT_MODEL = "gpt-5.4-mini"
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
@@ -31,10 +24,6 @@ if "checkpointer" not in st.session_state:
     st.session_state.checkpointer = MemorySaver()
 if "history" not in st.session_state:
     st.session_state.history = []
-if "model" not in st.session_state:
-    st.session_state.model = OPENAI_MODELS[0]
-elif st.session_state.model not in OPENAI_MODELS:
-    st.session_state.model = OPENAI_MODELS[0]
 if "temperature" not in st.session_state:
     st.session_state.temperature = 0.0
 if "vectorstore" not in st.session_state:
@@ -52,11 +41,6 @@ with st.sidebar:
     else:
         st.error("OPENAI_API_KEY missing — set it in .env")
 
-    st.session_state.model = st.selectbox(
-        "Model",
-        OPENAI_MODELS,
-        index=OPENAI_MODELS.index(st.session_state.model),
-    )
     st.session_state.temperature = st.slider(
         "Temperature", 0.0, 1.0, st.session_state.temperature, 0.1
     )
@@ -114,7 +98,7 @@ with st.sidebar:
 
 def get_agent():
     return build_agent(
-        model_name=st.session_state.model,
+        model_name=DEFAULT_MODEL,
         temperature=st.session_state.temperature,
         checkpointer=st.session_state.checkpointer,
         vectorstore=st.session_state.vectorstore,

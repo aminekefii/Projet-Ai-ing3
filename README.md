@@ -8,7 +8,7 @@ cross-checks sources, and answers in clean Markdown with citations.
 
 ## Stack
 
-- **LLM**: [OpenAI](https://openai.com) — `gpt-5.4-nano` by default (fast and cheap; switchable to `gpt-5.4`, `gpt-5.5`, `gpt-4.1-nano`, `gpt-4o-mini` etc. from the sidebar)
+- **LLM**: [OpenAI](https://openai.com) — `gpt-5.4-mini`
 - **Agent core**: [LangGraph](https://langchain-ai.github.io/langgraph/) ReAct agent + `MemorySaver` for conversation memory
 - **UI**: [Streamlit](https://streamlit.io) chat with live tool-call visualization + sidebar document uploader
 - **Embeddings**: [FastEmbed](https://github.com/qdrant/fastembed) (`BAAI/bge-small-en-v1.5`, ONNX, ~33 MB, runs on CPU)
