@@ -14,12 +14,14 @@ def build_agent(
     checkpointer: MemorySaver | None = None,
     vectorstore=None,
 ):
-    """Construct a ReAct research agent backed by OpenAI.
+    """Construct a ReAct academic-writing agent backed by OpenAI.
 
     The agent plans, calls tools, and reasons over their outputs in a loop
-    until it produces a final answer. The optional checkpointer persists
+    until it produces a final answer suitable for a university article
+    (outline, draft, citations, revision). The optional checkpointer persists
     conversation state across turns (keyed by thread_id at invocation time).
-    Passing a vectorstore enables a document_search tool over the user's uploads.
+    Passing a vectorstore enables a document_search tool over the student's
+    uploaded readings and notes.
     """
     llm = ChatOpenAI(model=model_name, temperature=temperature)
     tools = build_tools(vectorstore=vectorstore)

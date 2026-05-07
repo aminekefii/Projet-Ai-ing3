@@ -11,8 +11,8 @@ from agent.graph import DEFAULT_MODEL, build_agent
 load_dotenv()
 
 st.set_page_config(
-    page_title="Research Assistant Agent",
-    page_icon="🔬",
+    page_title="University Writing Assistant",
+    page_icon="🎓",
     layout="wide",
 )
 
@@ -50,14 +50,14 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.markdown("### 📄 Documents (RAG)")
+    st.markdown("### 📄 Readings & notes (RAG)")
     uploaded = st.file_uploader(
-        "Upload PDF or TXT",
+        "Upload course readings, notes, or sources (PDF / TXT)",
         type=["pdf", "txt"],
         accept_multiple_files=True,
         label_visibility="collapsed",
     )
-    if uploaded and st.button("📚 Index documents", use_container_width=True):
+    if uploaded and st.button("📚 Index readings", use_container_width=True):
         from agent.rag import index_uploaded_files
         with st.spinner("Chunking and embedding…"):
             vs, summary = index_uploaded_files(uploaded)
@@ -73,7 +73,7 @@ with st.sidebar:
         st.markdown("**Indexed:**")
         for name, n in st.session_state.indexed_files:
             st.caption(f"• `{name}` — {n} chunks")
-        if st.button("🧹 Clear documents", use_container_width=True):
+        if st.button("🧹 Clear readings", use_container_width=True):
             st.session_state.vectorstore = None
             st.session_state.indexed_files = []
             st.rerun()
@@ -81,13 +81,13 @@ with st.sidebar:
     st.divider()
     st.markdown("### 🛠️ Available tools")
     base_tools = (
-        "- **Web search** — DuckDuckGo (live web)\n"
-        "- **Wikipedia** — encyclopedic facts\n"
-        "- **arXiv** — academic papers\n"
-        "- **Python REPL** — math & code execution"
+        "- **Web search** — current sources, statistics, news (DuckDuckGo)\n"
+        "- **Wikipedia** — background, definitions, biographies\n"
+        "- **arXiv** — peer-reviewed and pre-print research\n"
+        "- **Python REPL** — math, statistics, unit conversion"
     )
     if st.session_state.vectorstore is not None:
-        base_tools += "\n- **Document search** — your uploaded files"
+        base_tools += "\n- **Document search** — your uploaded readings"
     st.markdown(base_tools)
 
     st.divider()
@@ -108,14 +108,14 @@ def truncate(text: str, n: int = 1500) -> str:
     return text if len(text) <= n else text[:n] + "\n\n…(truncated)"
 
 
-st.title("🔬 Research Assistant Agent")
-st.caption("Multi-step research powered by OpenAI + LangGraph. Web · Wikipedia · arXiv · Python · Your documents.")
+st.title("🎓 University Writing Assistant")
+st.caption("Source-grounded help for university articles — outline, draft, cite, revise. Web · Wikipedia · arXiv · Python · Your readings.")
 
 for entry in st.session_state.history:
     with st.chat_message(entry["role"]):
         st.markdown(entry["content"])
 
-user_input = st.chat_input("Ask a research question…")
+user_input = st.chat_input("Ask for help with your paper — outline, draft a section, find sources, revise…")
 
 if user_input:
     if not os.getenv("OPENAI_API_KEY"):
