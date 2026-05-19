@@ -86,7 +86,7 @@ MODES = [
 cols = st.columns(3, gap="medium")
 for col, mode in zip(cols, MODES):
     with col:
-        with st.container(border=True):
+        with st.container(border=True, height=320):
             st.markdown(f"### {mode['icon']} {mode['title']}")
             st.caption(mode["tagline"])
             st.markdown("\n".join(f"- {f}" for f in mode["features"]))
