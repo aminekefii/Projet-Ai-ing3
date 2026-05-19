@@ -5,7 +5,7 @@ from langgraph.prebuilt import create_react_agent
 from .prompts import get_prompt
 from .tools import build_tools
 
-DEFAULT_MODEL = "gpt-5.4-mini"
+DEFAULT_MODEL = "gpt-4o-mini"
 
 
 def build_agent(

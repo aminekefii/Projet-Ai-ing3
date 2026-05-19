@@ -12,7 +12,7 @@ citations and a Sources / References section.
 
 ## Stack
 
-- **LLM**: [OpenAI](https://openai.com) — `gpt-5.4-mini`
+- **LLM**: [OpenAI](https://openai.com) — `gpt-4o-mini` (configurable)
 - **Agent core**: [LangGraph](https://langchain-ai.github.io/langgraph/) ReAct agent + `MemorySaver` for conversation memory
 - **UI**: [Streamlit](https://streamlit.io) chat with live tool-call visualization + sidebar document uploader
 - **Embeddings**: [FastEmbed](https://github.com/qdrant/fastembed) (`BAAI/bge-small-en-v1.5`, ONNX, ~33 MB, runs on CPU)
