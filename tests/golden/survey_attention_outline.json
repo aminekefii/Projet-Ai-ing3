@@ -1,0 +1,17 @@
+{
+  "section_count": 5,
+  "titles": [
+    "Introduction",
+    "Background",
+    "Related Work",
+    "Discussion",
+    "Conclusion"
+  ],
+  "target_words": [
+    400,
+    600,
+    800,
+    600,
+    300
+  ]
+}
