@@ -43,6 +43,24 @@ with st.sidebar:
 st.title("📑 Research Paper Agent")
 st.caption("Multi-agent academic writing assistant — researcher → drafter → reviewer, with human checkpoints.")
 
+# CSS: make each mode card's inner block a flex column so the Start button
+# sits at the bottom regardless of how much bullet text precedes it.
+st.markdown(
+    """
+    <style>
+    [data-testid="stVerticalBlockBorderWrapper"] > div:first-child > [data-testid="stVerticalBlock"] {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] > div:first-child > [data-testid="stVerticalBlock"] > div:last-child {
+        margin-top: auto;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.markdown("## Start creating your paper")
 st.write("Pick the type that matches what you're writing.")
 st.write("")
@@ -86,7 +104,7 @@ MODES = [
 cols = st.columns(3, gap="medium")
 for col, mode in zip(cols, MODES):
     with col:
-        with st.container(border=True, height=320):
+        with st.container(border=True, height=400):
             st.markdown(f"### {mode['icon']} {mode['title']}")
             st.caption(mode["tagline"])
             st.markdown("\n".join(f"- {f}" for f in mode["features"]))
