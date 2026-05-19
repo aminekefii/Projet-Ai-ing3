@@ -57,3 +57,4 @@ class PaperState(TypedDict, total=False):
     token_usage: TokenUsage
     messages: list[BaseMessage]
     final_output: Optional[str]
+    forced_review_issues: list  # ReviewIssue[] — populated by drafter, consumed by reviewer
