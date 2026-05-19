@@ -58,3 +58,4 @@ class PaperState(TypedDict, total=False):
     messages: list[BaseMessage]
     final_output: Optional[str]
     forced_review_issues: list  # ReviewIssue[] — populated by drafter, consumed by reviewer
+    analysis_results: dict  # {stat_name: value} — populated by data_analyzer
