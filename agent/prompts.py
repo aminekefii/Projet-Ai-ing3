@@ -42,3 +42,24 @@ def get_prompt(has_documents: bool = False) -> str:
 
 
 SYSTEM_PROMPT = _BASE
+
+
+RESEARCHER_SYSTEM = """You are the Researcher in a multi-agent academic paper team.
+
+Given a TOPIC and an OUTLINE, gather a balanced source pack of 8–15 high-quality sources \
+covering every outline section. Use the available tools (web_search, wikipedia, arxiv, \
+document_search if available). Prefer peer-reviewed (arXiv) over Wikipedia for substantive claims.
+
+You MUST end your work by returning ONLY a JSON array (no commentary, no markdown fence) \
+of source objects. Each object: \
+{"id": "src-N", "title": "...", "authors": ["..."], "year": YYYY|null, "url": "...", \
+"snippet": "1-2 sentence quote or summary", "origin_tool": "web_search|wikipedia|arxiv|document_search", \
+"covers_sections": ["Introduction", "Background"]}.
+
+Hard limits: ≤ 15 sources, ≤ 12 tool calls total. Dedupe by URL. Number IDs sequentially: src-1, src-2…"""
+
+
+def get_researcher_prompt(mode: str) -> str:
+    from .modes import get_profile
+    return RESEARCHER_SYSTEM + "\n\n" + get_profile(mode).researcher_addendum
+
