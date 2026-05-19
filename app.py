@@ -1,186 +1,243 @@
+"""Streamlit UI for the multi-agent research-paper system."""
 import os
 import uuid
 
 import streamlit as st
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 
-from agent.graph import DEFAULT_MODEL, build_agent
+from agent.graph import DEFAULT_MODEL, build_graph
+from agent.state import Section, Source, TokenUsage
 
 load_dotenv()
 
-st.set_page_config(
-    page_title="University Writing Assistant",
-    page_icon="🎓",
-    layout="wide",
-)
+st.set_page_config(page_title="Research Paper Agent", page_icon="📑", layout="wide")
 
-if "thread_id" not in st.session_state:
-    st.session_state.thread_id = str(uuid.uuid4())
-if "checkpointer" not in st.session_state:
-    st.session_state.checkpointer = MemorySaver()
-if "history" not in st.session_state:
-    st.session_state.history = []
-if "temperature" not in st.session_state:
-    st.session_state.temperature = 0.0
-if "vectorstore" not in st.session_state:
-    st.session_state.vectorstore = None
-if "indexed_files" not in st.session_state:
-    st.session_state.indexed_files = []
+# --- Session state init ---
+defaults = {
+    "thread_id": str(uuid.uuid4()),
+    "checkpointer": MemorySaver(),
+    "vectorstore": None,
+    "indexed_files": [],
+    "mode": "survey",
+    "pending_checkpoint": None,
+    "run_started": False,
+    "trace": [],   # list of {kind, content} for the chat-style render
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 
+# --- Sidebar ---
 with st.sidebar:
     st.title("⚙️ Settings")
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if api_key:
+    if os.getenv("OPENAI_API_KEY"):
         st.success("OpenAI API key loaded")
     else:
         st.error("OPENAI_API_KEY missing — set it in .env")
 
-    st.session_state.temperature = st.slider(
-        "Temperature", 0.0, 1.0, st.session_state.temperature, 0.1
+    st.session_state.mode = st.selectbox(
+        "Paper mode",
+        ["survey", "empirical", "term"],
+        index=["survey", "empirical", "term"].index(st.session_state.mode),
+        help=(
+            "**survey**: literature review · **empirical**: built around your data · "
+            "**term**: standard essay (no review loop)"
+        ),
     )
 
-    if st.button("🗑️ Clear conversation", use_container_width=True):
+    if st.button("🗑️ Start over", use_container_width=True):
+        for k, v in defaults.items():
+            st.session_state[k] = v if not callable(v) else v
         st.session_state.thread_id = str(uuid.uuid4())
         st.session_state.checkpointer = MemorySaver()
-        st.session_state.history = []
         st.rerun()
 
     st.divider()
-    st.markdown("### 📄 Readings & notes (RAG)")
+    st.markdown("### 📄 Readings / data")
     uploaded = st.file_uploader(
-        "Upload course readings, notes, or sources (PDF / TXT)",
-        type=["pdf", "txt"],
+        "Upload PDF or TXT (CSV for empirical mode)",
+        type=["pdf", "txt", "csv"],
         accept_multiple_files=True,
         label_visibility="collapsed",
     )
-    if uploaded and st.button("📚 Index readings", use_container_width=True):
+    if uploaded and st.button("📚 Index", use_container_width=True):
         from agent.rag import index_uploaded_files
-        with st.spinner("Chunking and embedding…"):
+        with st.spinner("Indexing…"):
             vs, summary = index_uploaded_files(uploaded)
         if vs is None:
-            st.warning("No usable text extracted from the uploaded files.")
+            st.warning("No usable text extracted.")
         else:
             st.session_state.vectorstore = vs
             st.session_state.indexed_files = summary
-            total_chunks = sum(n for _, n in summary)
-            st.success(f"Indexed {len(summary)} file(s), {total_chunks} chunks.")
+            st.success(f"Indexed {len(summary)} file(s).")
 
     if st.session_state.indexed_files:
-        st.markdown("**Indexed:**")
         for name, n in st.session_state.indexed_files:
             st.caption(f"• `{name}` — {n} chunks")
-        if st.button("🧹 Clear readings", use_container_width=True):
-            st.session_state.vectorstore = None
-            st.session_state.indexed_files = []
-            st.rerun()
-
-    st.divider()
-    st.markdown("### 🛠️ Available tools")
-    base_tools = (
-        "- **Web search** — current sources, statistics, news (DuckDuckGo)\n"
-        "- **Wikipedia** — background, definitions, biographies\n"
-        "- **arXiv** — peer-reviewed and pre-print research\n"
-        "- **Python REPL** — math, statistics, unit conversion"
-    )
-    if st.session_state.vectorstore is not None:
-        base_tools += "\n- **Document search** — your uploaded readings"
-    st.markdown(base_tools)
 
     st.divider()
     st.caption(f"Thread: `{st.session_state.thread_id[:8]}…`")
 
 
-def get_agent():
-    return build_agent(
+# --- Main panel ---
+st.title("📑 Research Paper Agent")
+st.caption("Multi-agent: researcher → drafter → reviewer. You approve at each checkpoint.")
+
+
+def get_graph():
+    return build_graph(
         model_name=DEFAULT_MODEL,
-        temperature=st.session_state.temperature,
-        checkpointer=st.session_state.checkpointer,
         vectorstore=st.session_state.vectorstore,
+        checkpointer=st.session_state.checkpointer,
     )
 
 
-def truncate(text: str, n: int = 1500) -> str:
-    text = str(text)
-    return text if len(text) <= n else text[:n] + "\n\n…(truncated)"
+def config():
+    return {"configurable": {"thread_id": st.session_state.thread_id}}
 
 
-st.title("🎓 University Writing Assistant")
-st.caption("Source-grounded help for university articles — outline, draft, cite, revise. Web · Wikipedia · arXiv · Python · Your readings.")
+def render_trace():
+    for entry in st.session_state.trace:
+        if entry["kind"] == "user":
+            with st.chat_message("user"):
+                st.markdown(entry["content"])
+        elif entry["kind"] == "node":
+            with st.chat_message("assistant"):
+                st.markdown(f"**✓ {entry['node']}** complete")
+                if entry.get("detail"):
+                    with st.expander("details"):
+                        st.json(entry["detail"])
+        elif entry["kind"] == "final":
+            with st.chat_message("assistant"):
+                st.markdown(entry["content"])
 
-for entry in st.session_state.history:
-    with st.chat_message(entry["role"]):
-        st.markdown(entry["content"])
 
-user_input = st.chat_input("Ask for help with your paper — outline, draft a section, find sources, revise…")
+def stream_until_interrupt(initial_input=None):
+    graph = get_graph()
+    for event in graph.stream(initial_input, config=config(), stream_mode="updates"):
+        for node, payload in event.items():
+            st.session_state.trace.append({
+                "kind": "node", "node": node,
+                "detail": {k: str(v)[:200] for k, v in (payload or {}).items()},
+            })
+    snapshot = graph.get_state(config())
+    if snapshot.next:
+        st.session_state.pending_checkpoint = snapshot.next[0]
+    else:
+        st.session_state.pending_checkpoint = None
 
-if user_input:
-    if not os.getenv("OPENAI_API_KEY"):
-        st.error("Cannot run — set OPENAI_API_KEY in your .env file first.")
-        st.stop()
 
-    st.session_state.history.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
+def render_checkpoint_card():
+    graph = get_graph()
+    snapshot = graph.get_state(config())
+    cp = st.session_state.pending_checkpoint
 
-    with st.chat_message("assistant"):
-        config = {"configurable": {"thread_id": st.session_state.thread_id}}
-        final_text = ""
-        tools_used: list[str] = []
-        agent = get_agent()
+    if cp == "researcher":
+        st.subheader("Checkpoint 1: Confirm outline")
+        outline = snapshot.values.get("outline", [])
+        edited_titles = []
+        edited_bullets = []
+        edited_words = []
+        for i, sec in enumerate(outline):
+            with st.expander(f"§ {sec.title}", expanded=True):
+                edited_titles.append(st.text_input("Title", sec.title, key=f"t{i}"))
+                edited_bullets.append(st.text_area("Bullets (one per line)",
+                                                    "\n".join(sec.bullets), key=f"b{i}"))
+                edited_words.append(st.number_input("Target words", value=sec.target_words,
+                                                     step=50, key=f"w{i}"))
+        col1, col2 = st.columns(2)
+        if col1.button("✅ Approve outline → start research", type="primary",
+                       use_container_width=True):
+            new_outline = [
+                Section(title=t, bullets=[b for b in bs.split("\n") if b.strip()],
+                        target_words=int(w))
+                for t, bs, w in zip(edited_titles, edited_bullets, edited_words)
+            ]
+            graph.update_state(config(), {"outline": new_outline})
+            st.session_state.pending_checkpoint = None
+            with st.spinner("Researching…"):
+                stream_until_interrupt(None)
+            st.rerun()
+        if col2.button("❌ Cancel paper", use_container_width=True):
+            st.session_state.pending_checkpoint = None
+            st.session_state.run_started = False
+            st.rerun()
 
-        try:
-            for chunk in agent.stream(
-                {"messages": [HumanMessage(content=user_input)]},
-                config=config,
-                stream_mode="updates",
-            ):
-                for _node, payload in chunk.items():
-                    if not isinstance(payload, dict):
-                        continue
-                    for msg in payload.get("messages", []):
-                        if isinstance(msg, AIMessage):
-                            for tc in (msg.tool_calls or []):
-                                name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", "?")
-                                args = tc.get("args", {}) if isinstance(tc, dict) else getattr(tc, "args", {})
-                                tools_used.append(name)
-                                with st.status(
-                                    f"🛠️ Calling `{name}`",
-                                    expanded=False,
-                                ) as status:
-                                    st.json(args)
-                                    status.update(state="complete")
-                            if msg.content:
-                                final_text = msg.content
-                                st.markdown(msg.content)
-                        elif isinstance(msg, ToolMessage):
-                            with st.status(
-                                f"📥 `{msg.name}` returned",
-                                expanded=False,
-                            ) as status:
-                                st.markdown(truncate(msg.content))
-                                status.update(state="complete")
+    elif cp == "drafter":
+        st.subheader("Checkpoint 2: Approve source pack")
+        sources = snapshot.values.get("sources", [])
+        keep = []
+        for src in sources:
+            label = f"**{src.id}** — {src.title} ({src.origin_tool})"
+            if st.checkbox(label, value=True, key=f"src{src.id}"):
+                keep.append(src)
+            if src.url:
+                st.caption(src.url)
+        if st.button(f"✅ Draft with {len(keep)} sources", type="primary",
+                     use_container_width=True):
+            graph.update_state(config(), {"sources": keep})
+            st.session_state.pending_checkpoint = None
+            with st.spinner("Drafting…"):
+                stream_until_interrupt(None)
+            st.rerun()
 
-            if tools_used:
-                summary = ", ".join(f"`{t}`" for t in tools_used)
-                st.success(f"✅ Grounded in {len(tools_used)} tool call(s): {summary}")
-            else:
-                st.warning("⚠️ Answered without invoking any tool — response is from the model's own knowledge.")
-        except Exception as e:
-            err = f"⚠️ Agent error: `{type(e).__name__}` — {e}"
-            st.error(err)
-            final_text = err
+    elif cp == "finalize":
+        st.subheader("Checkpoint 3: Review draft")
+        draft = snapshot.values.get("draft", {})
+        review = snapshot.values.get("review")
+        if review and review.issues:
+            with st.expander(f"⚠️ Reviewer flagged {len(review.issues)} issue(s)"):
+                for i in review.issues:
+                    st.markdown(f"- **[{i.kind}]** {i.section}: {i.suggestion}")
+        for title, body in draft.items():
+            with st.expander(f"## {title}", expanded=False):
+                st.markdown(body)
+        if st.button("✅ Approve → finalize", type="primary", use_container_width=True):
+            st.session_state.pending_checkpoint = None
+            with st.spinner("Finalizing…"):
+                stream_until_interrupt(None)
+            st.rerun()
 
-        # Persist the answer + a one-line tool footer so it stays visible after rerun
-        footer = ""
-        if tools_used:
-            footer = f"\n\n---\n_✅ Grounded in {len(tools_used)} tool call(s): {', '.join(f'`{t}`' for t in tools_used)}_"
-        elif final_text and not final_text.startswith("⚠️"):
-            footer = "\n\n---\n_⚠️ Answered without tools — from the model's own knowledge._"
 
-        st.session_state.history.append(
-            {"role": "assistant", "content": (final_text or "_(no answer produced)_") + footer}
-        )
+# --- Main flow ---
+render_trace()
+
+if st.session_state.pending_checkpoint:
+    render_checkpoint_card()
+elif st.session_state.run_started:
+    # Run completed
+    graph = get_graph()
+    snapshot = graph.get_state(config())
+    final = snapshot.values.get("final_output")
+    if final:
+        st.success("📑 Paper complete")
+        st.download_button("⬇️ Download Markdown", final,
+                           file_name="paper.md", mime="text/markdown")
+        with st.expander("Preview", expanded=True):
+            st.markdown(final)
+else:
+    topic = st.chat_input("Paper topic (e.g. 'Transformer attention mechanisms')")
+    if topic:
+        if not os.getenv("OPENAI_API_KEY"):
+            st.error("Set OPENAI_API_KEY in .env first.")
+            st.stop()
+        st.session_state.trace.append({"kind": "user", "content": topic})
+        st.session_state.run_started = True
+        with st.spinner("Generating outline…"):
+            user_data = []
+            if st.session_state.vectorstore is not None and st.session_state.mode == "empirical":
+                # Pull docs from vectorstore for the empirical analyzer
+                user_data = [
+                    d for d in st.session_state.vectorstore.docstore._dict.values()
+                ][:10]
+            stream_until_interrupt({
+                "topic": topic,
+                "mode": st.session_state.mode,
+                "user_data": user_data,
+                "token_usage": TokenUsage(),
+                "messages": [],
+            })
+        st.rerun()
