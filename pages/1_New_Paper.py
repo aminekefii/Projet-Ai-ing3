@@ -1,4 +1,5 @@
 """New Paper page — runs the multi-agent graph with checkpoint cards."""
+import io
 import os
 import uuid
 
@@ -211,6 +212,62 @@ def render_checkpoint_card():
             with st.spinner("Finalizing…"):
                 stream_until_interrupt(None)
             st.rerun()
+
+
+# --- Resume an existing paper if requested ---
+resume_id = st.session_state.pop("resume_paper_id", None)
+if resume_id:
+    paper = db.get_paper(resume_id)
+    if paper is None:
+        st.error(f"Paper {resume_id[:8]}… not found.")
+        st.stop()
+    st.session_state.thread_id = resume_id
+    st.session_state.mode = paper["mode"]
+    st.session_state.trace = [{"kind": "user", "content": paper["topic"]}]
+    st.session_state.run_started = True
+    st.session_state.pending_checkpoint = None
+    st.session_state._persisted_complete = (paper["status"] == "complete")
+
+    # Re-download persisted files and rebuild FAISS in-memory.
+    file_rows = db.list_paper_files(resume_id)
+    if file_rows:
+        from agent.rag import index_uploaded_files
+
+        class _ResumedFile:
+            def __init__(self, name, payload):
+                self.name = name
+                self._buf = io.BytesIO(payload)
+                self.size = len(payload)
+            def getvalue(self):
+                return self._buf.getvalue()
+            def read(self, *args, **kwargs):
+                return self._buf.read(*args, **kwargs)
+            def seek(self, *args, **kwargs):
+                return self._buf.seek(*args, **kwargs)
+
+        resumed_files = []
+        for row in file_rows:
+            try:
+                blob = db.download_file(row["storage_path"])
+                resumed_files.append(_ResumedFile(row["file_name"], blob))
+            except Exception as e:
+                st.warning(f"File '{row['file_name']}' missing from Storage — continuing without it ({e})")
+        if resumed_files:
+            with st.spinner("Re-indexing saved files…"):
+                vs, summary = index_uploaded_files(resumed_files)
+            if vs is not None:
+                st.session_state.vectorstore = vs
+                st.session_state.indexed_files = summary
+
+    # Sync the pending checkpoint from PostgresSaver-backed graph state.
+    graph = build_graph(
+        model_name=DEFAULT_MODEL,
+        vectorstore=st.session_state.vectorstore,
+        checkpointer=st.session_state.checkpointer,
+    )
+    snapshot = graph.get_state({"configurable": {"thread_id": resume_id}})
+    if snapshot.next:
+        st.session_state.pending_checkpoint = snapshot.next[0]
 
 
 # --- Main flow ---
