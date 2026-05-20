@@ -93,3 +93,41 @@ def delete_paper(thread_id: str) -> None:
     if paths:
         client.storage.from_(_BUCKET).remove(paths)
     client.table(_PAPERS_TABLE).delete().eq("id", thread_id).execute()
+
+
+def upload_file(thread_id: str, uploaded_file) -> str:
+    """Upload a Streamlit UploadedFile to Storage and record metadata.
+
+    Returns the storage path of the uploaded blob.
+    """
+    payload = uploaded_file.getvalue()
+    storage_path = f"{thread_id}/{uploaded_file.name}"
+
+    client = get_client()
+    client.storage.from_(_BUCKET).upload(
+        path=storage_path,
+        file=payload,
+        file_options={"upsert": "true"},
+    )
+    client.table(_FILES_TABLE).insert({
+        "paper_id": thread_id,
+        "file_name": uploaded_file.name,
+        "file_size": len(payload),
+        "storage_path": storage_path,
+    }).execute()
+    return storage_path
+
+
+def list_paper_files(thread_id: str) -> list[dict]:
+    """Return all file rows for a paper, oldest upload first."""
+    response = (get_client().table(_FILES_TABLE)
+                .select("*")
+                .eq("paper_id", thread_id)
+                .order("uploaded_at")
+                .execute())
+    return response.data or []
+
+
+def download_file(storage_path: str) -> bytes:
+    """Download a blob from Storage by its path."""
+    return get_client().storage.from_(_BUCKET).download(storage_path)

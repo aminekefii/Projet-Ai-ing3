@@ -154,3 +154,67 @@ def test_delete_paper_cascades_to_files_and_storage(patched_client):
     client.table.assert_any_call("papers")
     delete = client.table.return_value.delete
     delete.return_value.eq.assert_called_with("id", "abc-123")
+
+
+# ---------- files + storage ----------
+
+class _FakeUploadedFile:
+    """Stand-in for a streamlit.runtime.uploaded_file_manager.UploadedFile."""
+    def __init__(self, name: str, payload: bytes):
+        self.name = name
+        self._payload = payload
+        self.size = len(payload)
+    def getvalue(self) -> bytes:
+        return self._payload
+
+
+def test_upload_file_writes_blob_and_inserts_row(patched_client):
+    client, db = patched_client
+    f = _FakeUploadedFile("notes.pdf", b"%PDF-1.7 fake")
+
+    path = db.upload_file("abc-123", f)
+
+    assert path == "abc-123/notes.pdf"
+
+    # Storage call
+    client.storage.from_.assert_any_call("paper-files")
+    client.storage.from_.return_value.upload.assert_called_once()
+    upload_args = client.storage.from_.return_value.upload.call_args
+    assert upload_args.kwargs.get("path") == "abc-123/notes.pdf" \
+        or upload_args.args[0] == "abc-123/notes.pdf"
+
+    # Metadata insert
+    client.table.assert_any_call("paper_files")
+    insert = client.table.return_value.insert
+    row = insert.call_args[0][0]
+    assert row["paper_id"] == "abc-123"
+    assert row["file_name"] == "notes.pdf"
+    assert row["file_size"] == len(b"%PDF-1.7 fake")
+    assert row["storage_path"] == "abc-123/notes.pdf"
+
+
+def test_list_paper_files_returns_rows_in_upload_order(patched_client):
+    client, db = patched_client
+    rows = [{"file_name": "a.pdf"}, {"file_name": "b.pdf"}]
+    response = MagicMock()
+    response.data = rows
+    (client.table.return_value.select.return_value
+        .eq.return_value.order.return_value.execute.return_value) = response
+
+    got = db.list_paper_files("abc-123")
+    assert got == rows
+    client.table.return_value.select.return_value.eq.assert_called_with(
+        "paper_id", "abc-123"
+    )
+    client.table.return_value.select.return_value.eq.return_value.order \
+        .assert_called_with("uploaded_at")
+
+
+def test_download_file_returns_blob_bytes(patched_client):
+    client, db = patched_client
+    client.storage.from_.return_value.download.return_value = b"%PDF-blob"
+
+    blob = db.download_file("abc-123/notes.pdf")
+    assert blob == b"%PDF-blob"
+    client.storage.from_.assert_any_call("paper-files")
+    client.storage.from_.return_value.download.assert_called_with("abc-123/notes.pdf")
