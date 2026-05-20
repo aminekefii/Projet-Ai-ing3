@@ -54,10 +54,18 @@ st.markdown(
 with st.sidebar:
     st.title("⚙️ Settings")
 
-    if st.button("🗑️ Start over", use_container_width=True):
+    if st.button("➕ New chat", use_container_width=True, type="primary"):
+        current_mode = st.session_state.mode
+        new_id = str(uuid.uuid4())
+        try:
+            db.create_paper(new_id, topic="(untitled)", mode=current_mode)
+        except Exception as e:
+            st.error(f"Could not reach Supabase: {e}")
+            st.stop()
         for k, v in defaults.items():
             st.session_state[k] = v if not callable(v) else v
-        st.session_state.thread_id = str(uuid.uuid4())
+        st.session_state.mode = current_mode
+        st.session_state.thread_id = new_id
         st.session_state.checkpointer = get_checkpointer()
         st.session_state.pop("_persisted_complete", None)
         st.rerun()
