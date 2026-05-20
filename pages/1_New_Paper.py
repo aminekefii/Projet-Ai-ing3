@@ -286,7 +286,7 @@ def render_checkpoint_card():
                 suggestion_llm = ChatOpenAI(model=DEFAULT_MODEL, temperature=0.7)
                 response = suggestion_llm.invoke(prompt)
                 suggestions = [
-                    line.strip().strip('"').strip("'")
+                    line.strip().strip('"\'"“”‘’')
                     for line in response.content.split("\n") if line.strip()
                 ][:5]
                 st.session_state.title_suggestions = suggestions
@@ -334,6 +334,7 @@ def render_checkpoint_card():
             # Clear ephemeral UI keys so they don't leak to the next paper.
             st.session_state.pop("title_input", None)
             st.session_state.pop("title_suggestions", None)
+            st.session_state.pop("pending_title", None)
             for section in outline:
                 st.session_state.pop(f"draft_{section.title}", None)
             with st.spinner("Finalizing…"):
