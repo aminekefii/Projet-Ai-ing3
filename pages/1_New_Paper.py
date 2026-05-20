@@ -68,6 +68,9 @@ with st.sidebar:
         st.session_state.thread_id = new_id
         st.session_state.checkpointer = get_checkpointer()
         st.session_state.pop("_persisted_complete", None)
+        st.session_state.pop("title_input", None)
+        st.session_state.pop("title_suggestions", None)
+        st.session_state.pop("pending_title", None)
         st.rerun()
 
     if st.button("← Back to dashboard", use_container_width=True):
@@ -254,17 +257,85 @@ def render_checkpoint_card():
 
     elif cp == "finalize":
         st.subheader("Checkpoint 3: Review draft")
+
+        # Drain any pending title suggestion before the text_input renders.
+        # (Streamlit forbids writing to a widget's bound key after instantiation.)
+        if "pending_title" in st.session_state:
+            st.session_state.title_input = st.session_state.pop("pending_title")
+
+        topic = snapshot.values.get("topic", "")
+        outline = snapshot.values.get("outline", [])
         draft = snapshot.values.get("draft", {})
         review = snapshot.values.get("review")
+
+        # ---- Title row ----
+        st.markdown("### 📝 Paper title")
+        if "title_input" not in st.session_state:
+            st.session_state.title_input = snapshot.values.get("paper_title") or topic
+        st.text_input("Title", key="title_input", label_visibility="collapsed")
+
+        if st.button("✨ Suggest titles"):
+            try:
+                from langchain_openai import ChatOpenAI
+                section_titles = [s.title for s in outline]
+                prompt = (
+                    f"Suggest 3 concise academic titles for a paper on the topic: {topic}\n"
+                    f"The paper covers these sections: {', '.join(section_titles)}.\n"
+                    f"Return one title per line. No numbering, no quotes, no commentary."
+                )
+                suggestion_llm = ChatOpenAI(model=DEFAULT_MODEL, temperature=0.7)
+                response = suggestion_llm.invoke(prompt)
+                suggestions = [
+                    line.strip().strip('"').strip("'")
+                    for line in response.content.split("\n") if line.strip()
+                ][:5]
+                st.session_state.title_suggestions = suggestions
+                st.rerun()
+            except Exception as e:
+                st.error(f"Couldn't generate suggestions: {e}")
+
+        if st.session_state.get("title_suggestions"):
+            st.caption("Suggestions (click to use):")
+            for i, sugg in enumerate(st.session_state.title_suggestions):
+                if st.button(sugg, key=f"sugg_{i}", use_container_width=True):
+                    st.session_state.pending_title = sugg
+                    st.rerun()
+
+        st.divider()
+
+        # ---- Editable sections ----
+        st.markdown("### 📄 Sections")
+        issues_by_section: dict[str, list] = {}
         if review and review.issues:
-            with st.expander(f"⚠️ Reviewer flagged {len(review.issues)} issue(s)"):
-                for i in review.issues:
-                    st.markdown(f"- **[{i.kind}]** {i.section}: {i.suggestion}")
-        for title, body in draft.items():
-            with st.expander(f"## {title}", expanded=False):
-                st.markdown(body)
+            for issue in review.issues:
+                issues_by_section.setdefault(issue.section, []).append(issue)
+
+        edited_bodies: dict[str, str] = {}
+        for section in outline:
+            section_issues = issues_by_section.get(section.title, [])
+            if section_issues:
+                with st.container(border=True):
+                    st.markdown(f"⚠️ **Reviewer issues for {section.title}:**")
+                    for issue in section_issues:
+                        st.markdown(f"- **[{issue.kind}]** {issue.suggestion}")
+            edited_bodies[section.title] = st.text_area(
+                section.title,
+                value=draft.get(section.title, ""),
+                height=300,
+                key=f"draft_{section.title}",
+            )
+
         if st.button("✅ Approve → finalize", type="primary", use_container_width=True):
+            graph.update_state(config(), {
+                "draft": edited_bodies,
+                "paper_title": st.session_state.title_input,
+            })
             st.session_state.pending_checkpoint = None
+            # Clear ephemeral UI keys so they don't leak to the next paper.
+            st.session_state.pop("title_input", None)
+            st.session_state.pop("title_suggestions", None)
+            for section in outline:
+                st.session_state.pop(f"draft_{section.title}", None)
             with st.spinner("Finalizing…"):
                 stream_until_interrupt(None)
             st.rerun()
@@ -283,6 +354,9 @@ if resume_id:
     st.session_state.run_started = True
     st.session_state.pending_checkpoint = None
     st.session_state._persisted_complete = (paper["status"] == "complete")
+    st.session_state.pop("title_input", None)
+    st.session_state.pop("title_suggestions", None)
+    st.session_state.pop("pending_title", None)
 
     # Re-download persisted files and rebuild FAISS in-memory.
     file_rows = db.list_paper_files(resume_id)
