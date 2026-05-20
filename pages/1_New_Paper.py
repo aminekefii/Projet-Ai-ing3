@@ -48,11 +48,6 @@ MODE_LABELS = {
 with st.sidebar:
     st.title("⚙️ Settings")
 
-    if os.getenv("OPENAI_API_KEY"):
-        st.success("OpenAI API key loaded")
-    else:
-        st.error("OPENAI_API_KEY missing — set it in .env")
-
     if st.button("🗑️ Start over", use_container_width=True):
         for k, v in defaults.items():
             st.session_state[k] = v if not callable(v) else v
