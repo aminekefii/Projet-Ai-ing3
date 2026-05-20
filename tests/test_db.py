@@ -162,6 +162,17 @@ def test_delete_paper_cascades_to_files_and_storage(patched_client):
     # All three checkpoint deletes filter by thread_id (papers delete used id).
     delete.return_value.eq.assert_any_call("thread_id", "abc-123")
 
+    # Enforce the spec's dependency order: writes → blobs → checkpoints → papers.
+    # (papers must come last because that's the user-facing source of truth.)
+    table_calls = [c.args[0] for c in client.table.call_args_list]
+    checkpoint_and_paper_calls = [
+        t for t in table_calls
+        if t in ("checkpoint_writes", "checkpoint_blobs", "checkpoints", "papers")
+    ]
+    assert checkpoint_and_paper_calls == [
+        "checkpoint_writes", "checkpoint_blobs", "checkpoints", "papers"
+    ], f"expected writes→blobs→checkpoints→papers, got {checkpoint_and_paper_calls}"
+
 
 # ---------- files + storage ----------
 

@@ -88,6 +88,12 @@ def delete_paper(thread_id: str) -> None:
       2. LangGraph orphan rows in checkpoint_writes / checkpoint_blobs / checkpoints
          (no FK to papers, must be cleaned separately).
       3. The papers row (paper_files rows cascade via FK ON DELETE CASCADE).
+
+    Assumes LangGraph's checkpoint tables live in the `public` schema and are
+    exposed by PostgREST (the default `langgraph-checkpoint-postgres` setup).
+    A LangGraph upgrade that renames the tables or moves them to another schema
+    would make these deletes silently no-op — orphan checkpoint rows would
+    return. Re-verify by checking checkpoint row counts after a delete.
     """
     client = get_client()
     files = (client.table(_FILES_TABLE)
