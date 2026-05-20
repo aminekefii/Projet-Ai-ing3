@@ -49,6 +49,12 @@ def load_txt(data: bytes, filename: str) -> list[Document]:
     return [Document(page_content=text, metadata={"source": filename})]
 
 
+def load_csv(data: bytes, filename: str) -> list[Document]:
+    # Load CSV as plain text. The recursive chunker splits on newlines so rows
+    # stay together; empirical-mode data_analyzer reads samples of these chunks.
+    return load_txt(data, filename)
+
+
 def chunk_documents(docs: Iterable[Document]) -> list[Document]:
     """Recursive splitting on paragraph/sentence boundaries with overlap."""
     splitter = RecursiveCharacterTextSplitter(
@@ -75,6 +81,8 @@ def index_uploaded_files(uploaded_files) -> tuple[FAISS | None, list[tuple[str, 
             docs = load_pdf(data, name)
         elif lower.endswith(".txt"):
             docs = load_txt(data, name)
+        elif lower.endswith(".csv"):
+            docs = load_csv(data, name)
         else:
             continue
         if docs:
