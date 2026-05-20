@@ -131,7 +131,27 @@ for col, mode in zip(cols, MODES):
                 st.switch_page("pages/1_New_Paper.py")
 
 st.divider()
+
+# --- My papers ---
+st.markdown("## 📂 My papers")
+try:
+    rows = db.list_papers()
+except Exception as e:
+    st.error(f"Could not reach Supabase: {e}")
+    rows = []
+
+if not rows:
+    st.caption("No saved papers yet. Pick a mode above to start one.")
+else:
+    for row in rows:
+        status_icon = "✅" if row["status"] == "complete" else "✏️"
+        label = f"{status_icon}  **{row['topic']}**  ·  _{row['mode']}_  ·  {row['updated_at'][:10]}"
+        if st.button(label, key=f"resume_{row['id']}", use_container_width=True):
+            st.session_state.resume_paper_id = row["id"]
+            st.switch_page("pages/1_New_Paper.py")
+
+st.divider()
 st.caption(
     "📖 At each checkpoint (outline → sources → draft) you approve or edit before the graph continues. "
-    "State persists for the lifetime of this Streamlit server."
+    "Threads and uploaded files persist in Supabase."
 )
