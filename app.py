@@ -5,6 +5,7 @@ import uuid
 import streamlit as st
 from dotenv import load_dotenv
 from agent.checkpointer import get_checkpointer
+from agent import db
 
 load_dotenv()
 
@@ -115,9 +116,14 @@ for col, mode in zip(cols, MODES):
                 use_container_width=True,
                 type="primary",
             ):
+                new_id = str(uuid.uuid4())
+                try:
+                    db.create_paper(new_id, topic="(untitled)", mode=mode["key"])
+                except Exception as e:
+                    st.error(f"Could not reach Supabase: {e}")
+                    st.stop()
                 st.session_state.mode = mode["key"]
-                # Reset paper state so a fresh paper starts cleanly
-                st.session_state.thread_id = str(uuid.uuid4())
+                st.session_state.thread_id = new_id
                 st.session_state.checkpointer = get_checkpointer()
                 st.session_state.pending_checkpoint = None
                 st.session_state.run_started = False
