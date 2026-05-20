@@ -158,9 +158,17 @@ else:
     for row in rows:
         status_icon = "✅" if row["status"] == "complete" else "✏️"
         label = f"{status_icon}  **{row['topic']}**  ·  _{row['mode']}_  ·  {row['updated_at'][:10]}"
-        if st.button(label, key=f"resume_{row['id']}", use_container_width=True):
+        col_label, col_del = st.columns([9, 1])
+        if col_label.button(label, key=f"resume_{row['id']}", use_container_width=True):
             st.session_state.resume_paper_id = row["id"]
             st.switch_page("pages/1_New_Paper.py")
+        if col_del.button("🗑️", key=f"del_{row['id']}", help="Delete this paper", use_container_width=True):
+            try:
+                db.delete_paper(row["id"])
+            except Exception as e:
+                st.error(f"Could not delete: {e}")
+            else:
+                st.rerun()
 
 st.divider()
 st.caption(
