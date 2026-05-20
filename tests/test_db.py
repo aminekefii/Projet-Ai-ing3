@@ -153,7 +153,14 @@ def test_delete_paper_cascades_to_files_and_storage(patched_client):
     # Cascade deletes the papers row (and paper_files via FK ON DELETE CASCADE)
     client.table.assert_any_call("papers")
     delete = client.table.return_value.delete
-    delete.return_value.eq.assert_called_with("id", "abc-123")
+    delete.return_value.eq.assert_any_call("id", "abc-123")
+
+    # Wipe LangGraph orphan checkpoint rows (writes → blobs → checkpoints).
+    client.table.assert_any_call("checkpoint_writes")
+    client.table.assert_any_call("checkpoint_blobs")
+    client.table.assert_any_call("checkpoints")
+    # All three checkpoint deletes filter by thread_id (papers delete used id).
+    delete.return_value.eq.assert_any_call("thread_id", "abc-123")
 
 
 # ---------- files + storage ----------

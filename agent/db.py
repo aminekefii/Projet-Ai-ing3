@@ -81,7 +81,14 @@ def list_papers() -> list[dict]:
 
 
 def delete_paper(thread_id: str) -> None:
-    """Delete a paper, its file metadata (via ON DELETE CASCADE), and its Storage blobs."""
+    """Delete a paper, its files (metadata + Storage), and LangGraph checkpoints.
+
+    Cleans, in order:
+      1. Storage blobs listed in paper_files for this thread.
+      2. LangGraph orphan rows in checkpoint_writes / checkpoint_blobs / checkpoints
+         (no FK to papers, must be cleaned separately).
+      3. The papers row (paper_files rows cascade via FK ON DELETE CASCADE).
+    """
     client = get_client()
     files = (client.table(_FILES_TABLE)
              .select("storage_path")
@@ -90,6 +97,10 @@ def delete_paper(thread_id: str) -> None:
     paths = [row["storage_path"] for row in (files.data or [])]
     if paths:
         client.storage.from_(_BUCKET).remove(paths)
+    # LangGraph checkpoint tables — same Postgres DB, no FK to papers, so we
+    # wipe them through the SDK. Order: writes → blobs → checkpoints.
+    for tbl in ("checkpoint_writes", "checkpoint_blobs", "checkpoints"):
+        client.table(tbl).delete().eq("thread_id", thread_id).execute()
     client.table(_PAPERS_TABLE).delete().eq("id", thread_id).execute()
 
 
