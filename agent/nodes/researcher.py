@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import HumanMessage
 from langgraph.prebuilt import create_react_agent
 
@@ -15,6 +16,16 @@ MAX_SOURCES = 15
 MAX_TOOL_CALLS = 12
 
 _FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
+
+
+class _ToolTraceHandler(BaseCallbackHandler):
+    # Captures each tool invocation so the UI can show what the researcher did.
+    def __init__(self):
+        self.calls: list[dict] = []
+
+    def on_tool_start(self, serialized, input_str, **kwargs):
+        name = (serialized or {}).get("name", "?")
+        self.calls.append({"tool": name, "input": str(input_str)[:120]})
 
 
 def parse_sources_payload(text: str) -> list[Source]:
@@ -52,7 +63,12 @@ def make_researcher_node(llm, vectorstore=None):
             tools=tools,
             prompt=get_researcher_prompt(state["mode"]),
         )
-        result = sub_agent.invoke({"messages": [HumanMessage(content=user_msg)]})
+        trace = _ToolTraceHandler()
+        invoke_config = {"callbacks": [trace]}
+        result = sub_agent.invoke(
+            {"messages": [HumanMessage(content=user_msg)]},
+            config=invoke_config,
+        )
         final_text = result["messages"][-1].content
         try:
             sources = parse_sources_payload(final_text)
@@ -62,10 +78,11 @@ def make_researcher_node(llm, vectorstore=None):
                 "Your previous response was not valid JSON. Return ONLY a JSON array "
                 "of source objects, no commentary, no fence."
             )
-            result = sub_agent.invoke({
-                "messages": result["messages"] + [HumanMessage(content=retry_msg)]
-            })
+            result = sub_agent.invoke(
+                {"messages": result["messages"] + [HumanMessage(content=retry_msg)]},
+                config=invoke_config,
+            )
             sources = parse_sources_payload(result["messages"][-1].content)
-        return {"sources": sources}
+        return {"sources": sources, "tool_calls": trace.calls}
 
     return researcher_node

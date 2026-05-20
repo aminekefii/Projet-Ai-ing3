@@ -146,11 +146,26 @@ def config():
     return {"configurable": {"thread_id": st.session_state.thread_id}}
 
 
+_TOOL_ICONS = {
+    "web_search": "🌐",
+    "wikipedia": "📖",
+    "arxiv": "📄",
+    "python_repl": "🐍",
+    "document_search": "📎",
+}
+
+
 def render_trace():
     for entry in st.session_state.trace:
         if entry["kind"] == "user":
             with st.chat_message("user"):
                 st.markdown(entry["content"])
+        elif entry["kind"] == "tools":
+            with st.chat_message("assistant"):
+                st.markdown(f"**🔍 {entry['node']}** tool calls ({len(entry['calls'])})")
+                for call in entry["calls"]:
+                    icon = _TOOL_ICONS.get(call["tool"], "🔧")
+                    st.markdown(f"- {icon} **{call['tool']}** — `{call['input']}`")
         elif entry["kind"] == "node":
             with st.chat_message("assistant"):
                 st.markdown(f"**✓ {entry['node']}** complete")
@@ -166,9 +181,15 @@ def stream_until_interrupt(initial_input=None):
     graph = get_graph()
     for event in graph.stream(initial_input, config=config(), stream_mode="updates"):
         for node, payload in event.items():
+            payload = dict(payload or {})
+            tool_calls = payload.pop("tool_calls", None)
+            if tool_calls:
+                st.session_state.trace.append({
+                    "kind": "tools", "node": node, "calls": tool_calls,
+                })
             st.session_state.trace.append({
                 "kind": "node", "node": node,
-                "detail": {k: str(v)[:200] for k, v in (payload or {}).items()},
+                "detail": {k: str(v)[:200] for k, v in payload.items()},
             })
     snapshot = graph.get_state(config())
     if snapshot.next:
