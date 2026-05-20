@@ -5,6 +5,7 @@ import uuid
 import streamlit as st
 from dotenv import load_dotenv
 from agent.checkpointer import get_checkpointer
+from agent import db
 
 from agent.graph import DEFAULT_MODEL, build_graph
 from agent.state import Section, Source, TokenUsage
@@ -213,6 +214,12 @@ elif st.session_state.run_started:
     snapshot = graph.get_state(config())
     final = snapshot.values.get("final_output")
     if final:
+        if not st.session_state.get("_persisted_complete"):
+            try:
+                db.mark_complete(st.session_state.thread_id, final)
+                st.session_state._persisted_complete = True
+            except Exception as e:
+                st.warning(f"Could not save paper to history: {e}")
         st.success("📑 Paper complete")
         col_md, col_pdf = st.columns(2)
         col_md.download_button(
@@ -240,6 +247,10 @@ else:
             st.stop()
         st.session_state.trace.append({"kind": "user", "content": topic})
         st.session_state.run_started = True
+        try:
+            db.update_paper_topic(st.session_state.thread_id, topic)
+        except Exception as e:
+            st.warning(f"Could not save topic to history: {e}")
         with st.spinner("Generating outline…"):
             user_data = []
             if st.session_state.vectorstore is not None and st.session_state.mode == "empirical":
