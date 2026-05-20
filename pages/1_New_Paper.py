@@ -66,6 +66,24 @@ with st.sidebar:
         st.switch_page("app.py")
 
     st.divider()
+    st.markdown("### 📂 Past papers")
+    try:
+        _all_papers = db.list_papers()
+    except Exception as e:
+        st.caption(f"Could not load history: {e}")
+        _all_papers = []
+    _same_mode = [p for p in _all_papers if p["mode"] == st.session_state.mode]
+    if not _same_mode:
+        st.caption("No past papers yet.")
+    else:
+        for p in _same_mode:
+            _icon = "✅" if p["status"] == "complete" else "✏️"
+            _label = f"{_icon} {p['topic'][:40]}  ·  {p['updated_at'][:10]}"
+            if st.button(_label, key=f"sb_resume_{p['id']}", use_container_width=True):
+                st.session_state.resume_paper_id = p["id"]
+                st.rerun()
+
+    st.divider()
     st.markdown("### 📄 Readings / data")
     uploaded = st.file_uploader(
         "Upload PDF or TXT (CSV for empirical mode)",
