@@ -71,6 +71,8 @@ with st.sidebar:
         st.session_state.pop("title_input", None)
         st.session_state.pop("title_suggestions", None)
         st.session_state.pop("pending_title", None)
+        for _k in [_k for _k in st.session_state if _k.startswith("draft_")]:
+            st.session_state.pop(_k)
         st.rerun()
 
     if st.button("← Back to dashboard", use_container_width=True):
@@ -358,6 +360,8 @@ if resume_id:
     st.session_state.pop("title_input", None)
     st.session_state.pop("title_suggestions", None)
     st.session_state.pop("pending_title", None)
+    for _k in [_k for _k in st.session_state if _k.startswith("draft_")]:
+        st.session_state.pop(_k)
 
     # Re-download persisted files and rebuild FAISS in-memory.
     file_rows = db.list_paper_files(resume_id)
