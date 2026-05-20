@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from typing import Optional
 
 from supabase import Client, create_client
@@ -28,9 +29,6 @@ def get_client() -> Client:
         key = _require_env("SUPABASE_SERVICE_KEY")
         _client = create_client(url, key)
     return _client
-
-
-from datetime import datetime, timezone
 
 
 def _now_iso() -> str:
@@ -109,12 +107,15 @@ def upload_file(thread_id: str, uploaded_file) -> str:
         file=payload,
         file_options={"upsert": "true"},
     )
-    client.table(_FILES_TABLE).insert({
-        "paper_id": thread_id,
-        "file_name": uploaded_file.name,
-        "file_size": len(payload),
-        "storage_path": storage_path,
-    }).execute()
+    client.table(_FILES_TABLE).upsert(
+        {
+            "paper_id": thread_id,
+            "file_name": uploaded_file.name,
+            "file_size": len(payload),
+            "storage_path": storage_path,
+        },
+        on_conflict="paper_id,file_name",
+    ).execute()
     return storage_path
 
 

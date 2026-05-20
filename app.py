@@ -14,7 +14,7 @@ st.set_page_config(page_title="Research Paper Agent", page_icon="📑", layout="
 # --- Session state init (shared with New Paper page) ---
 defaults = {
     "thread_id": str(uuid.uuid4()),
-    "checkpointer": get_checkpointer(),
+    "checkpointer": None,
     "vectorstore": None,
     "indexed_files": [],
     "mode": "survey",
@@ -26,6 +26,12 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
+if st.session_state.checkpointer is None:
+    try:
+        st.session_state.checkpointer = get_checkpointer()
+    except RuntimeError as e:
+        st.error(f"Supabase env error: {e} — see .env.example")
+        st.stop()
 
 # --- Sidebar ---
 with st.sidebar:

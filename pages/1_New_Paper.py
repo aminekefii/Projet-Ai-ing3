@@ -18,7 +18,7 @@ st.set_page_config(page_title="New Paper · Research Paper Agent", page_icon="�
 # --- Session state init (shared with dashboard) ---
 defaults = {
     "thread_id": str(uuid.uuid4()),
-    "checkpointer": get_checkpointer(),
+    "checkpointer": None,
     "vectorstore": None,
     "indexed_files": [],
     "mode": "survey",
@@ -30,6 +30,12 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
+if st.session_state.checkpointer is None:
+    try:
+        st.session_state.checkpointer = get_checkpointer()
+    except RuntimeError as e:
+        st.error(f"Supabase env error: {e} — see .env.example")
+        st.stop()
 
 MODE_LABELS = {
     "survey": "📚 Literature Review",
@@ -52,6 +58,7 @@ with st.sidebar:
             st.session_state[k] = v if not callable(v) else v
         st.session_state.thread_id = str(uuid.uuid4())
         st.session_state.checkpointer = get_checkpointer()
+        st.session_state.pop("_persisted_complete", None)
         st.rerun()
 
     if st.button("← Back to dashboard", use_container_width=True):

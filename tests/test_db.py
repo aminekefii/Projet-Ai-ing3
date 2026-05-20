@@ -183,14 +183,16 @@ def test_upload_file_writes_blob_and_inserts_row(patched_client):
     assert upload_args.kwargs.get("path") == "abc-123/notes.pdf" \
         or upload_args.args[0] == "abc-123/notes.pdf"
 
-    # Metadata insert
+    # Metadata upsert (NOT insert, so re-uploads don't create duplicate rows)
     client.table.assert_any_call("paper_files")
-    insert = client.table.return_value.insert
-    row = insert.call_args[0][0]
+    upsert = client.table.return_value.upsert
+    row = upsert.call_args[0][0]
     assert row["paper_id"] == "abc-123"
     assert row["file_name"] == "notes.pdf"
     assert row["file_size"] == len(b"%PDF-1.7 fake")
     assert row["storage_path"] == "abc-123/notes.pdf"
+    assert upsert.call_args.kwargs.get("on_conflict") == "paper_id,file_name"
+    upsert.return_value.execute.assert_called_once()
 
 
 def test_list_paper_files_returns_rows_in_upload_order(patched_client):

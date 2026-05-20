@@ -24,7 +24,8 @@ create table if not exists public.paper_files (
     file_name     text not null,
     file_size     int  not null,
     storage_path  text not null,
-    uploaded_at   timestamptz not null default now()
+    uploaded_at   timestamptz not null default now(),
+    unique (paper_id, file_name)
 );
 
 create index if not exists paper_files_paper_idx on public.paper_files (paper_id);
