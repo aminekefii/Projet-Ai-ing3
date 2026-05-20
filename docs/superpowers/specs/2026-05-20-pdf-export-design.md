@@ -36,8 +36,8 @@ def markdown_to_pdf_bytes(markdown_text: str) -> bytes:
 
 ### Academic-light CSS (embedded in the module)
 
-- `h1` centered, 28pt, with bottom margin.
-- `h2`, `h3` left-aligned, sized hierarchy (20pt / 16pt), with top margin to separate sections.
+- `h1` centered, 24pt, with bottom margin.
+- `h2`, `h3` left-aligned, sized hierarchy (16pt / 13pt), with top margin to separate sections.
 - Body text 11pt, line-height 1.5.
 - `code` (inline) uses a monospace family — this is what citation IDs like `[src-3]` render as inside section bodies.
 - References section: same `h2` styling as other sections; list items get a left padding to read like an academic reference list.
