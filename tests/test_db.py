@@ -36,3 +36,121 @@ def test_get_client_caches_singleton(monkeypatch):
 
     assert first is second
     assert create.call_count == 1
+
+
+# ---------- papers CRUD ----------
+
+@pytest.fixture
+def patched_client(monkeypatch):
+    """Return a MagicMock standing in for the Supabase client, with env vars set."""
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "key")
+
+    import importlib
+
+    import agent.db as db
+    importlib.reload(db)
+
+    client = MagicMock()
+    with patch("agent.db.create_client", return_value=client):
+        # warm the cache
+        db.get_client()
+        yield client, db
+
+
+def test_create_paper_inserts_row(patched_client):
+    client, db = patched_client
+    db.create_paper("abc-123", "Photosynthesis", "term")
+
+    client.table.assert_called_with("papers")
+    insert = client.table.return_value.insert
+    insert.assert_called_once()
+    row = insert.call_args[0][0]
+    assert row["id"] == "abc-123"
+    assert row["topic"] == "Photosynthesis"
+    assert row["mode"] == "term"
+    insert.return_value.execute.assert_called_once()
+
+
+def test_update_paper_topic_updates_row(patched_client):
+    client, db = patched_client
+    db.update_paper_topic("abc-123", "New Topic")
+
+    client.table.assert_called_with("papers")
+    update = client.table.return_value.update
+    update.assert_called_once()
+    args = update.call_args[0][0]
+    assert args["topic"] == "New Topic"
+    assert "updated_at" in args
+    update.return_value.eq.assert_called_with("id", "abc-123")
+
+
+def test_mark_complete_sets_status_and_output(patched_client):
+    client, db = patched_client
+    db.mark_complete("abc-123", "# Final paper\n\n## Intro\n…")
+
+    client.table.assert_called_with("papers")
+    update = client.table.return_value.update
+    args = update.call_args[0][0]
+    assert args["status"] == "complete"
+    assert args["final_output"].startswith("# Final paper")
+    update.return_value.eq.assert_called_with("id", "abc-123")
+
+
+def test_get_paper_returns_row(patched_client):
+    client, db = patched_client
+    fake_row = {"id": "abc-123", "topic": "X", "mode": "term", "status": "complete",
+                "final_output": "# X", "created_at": "now", "updated_at": "now"}
+    response = MagicMock()
+    response.data = [fake_row]
+    client.table.return_value.select.return_value.eq.return_value.execute.return_value = response
+
+    got = db.get_paper("abc-123")
+    assert got == fake_row
+
+
+def test_get_paper_returns_none_when_missing(patched_client):
+    client, db = patched_client
+    response = MagicMock()
+    response.data = []
+    client.table.return_value.select.return_value.eq.return_value.execute.return_value = response
+
+    assert db.get_paper("missing") is None
+
+
+def test_list_papers_returns_rows_ordered(patched_client):
+    client, db = patched_client
+    rows = [{"id": "a", "topic": "A"}, {"id": "b", "topic": "B"}]
+    response = MagicMock()
+    response.data = rows
+    client.table.return_value.select.return_value.order.return_value.execute.return_value = response
+
+    got = db.list_papers()
+    assert got == rows
+    client.table.return_value.select.assert_called_with("*")
+    client.table.return_value.select.return_value.order.assert_called_with(
+        "updated_at", desc=True
+    )
+
+
+def test_delete_paper_cascades_to_files_and_storage(patched_client):
+    client, db = patched_client
+    # paper_files rows for this paper
+    files_response = MagicMock()
+    files_response.data = [{"storage_path": "abc/file1.pdf"},
+                           {"storage_path": "abc/file2.csv"}]
+    (client.table.return_value.select.return_value
+        .eq.return_value.execute.return_value) = files_response
+
+    db.delete_paper("abc-123")
+
+    # Storage purge
+    client.storage.from_.assert_any_call("paper-files")
+    client.storage.from_.return_value.remove.assert_called_with(
+        ["abc/file1.pdf", "abc/file2.csv"]
+    )
+
+    # Cascade deletes the papers row (and paper_files via FK ON DELETE CASCADE)
+    client.table.assert_any_call("papers")
+    delete = client.table.return_value.delete
+    delete.return_value.eq.assert_called_with("id", "abc-123")
