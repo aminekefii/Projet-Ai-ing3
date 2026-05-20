@@ -45,18 +45,6 @@ with st.sidebar:
     else:
         st.error("OPENAI_API_KEY missing — set it in .env")
 
-    st.session_state.mode = st.selectbox(
-        "Paper mode",
-        ["survey", "empirical", "term"],
-        index=["survey", "empirical", "term"].index(st.session_state.mode),
-        format_func=lambda k: MODE_LABELS[k],
-        help=(
-            "**Literature Review**: synthesis of peer-reviewed work · "
-            "**Empirical**: built around your data · "
-            "**Term**: standard essay (no review loop)"
-        ),
-    )
-
     if st.button("🗑️ Start over", use_container_width=True):
         for k, v in defaults.items():
             st.session_state[k] = v if not callable(v) else v
