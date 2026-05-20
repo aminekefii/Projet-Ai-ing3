@@ -4,7 +4,7 @@ import uuid
 
 import streamlit as st
 from dotenv import load_dotenv
-from langgraph.checkpoint.memory import MemorySaver
+from agent.checkpointer import get_checkpointer
 
 load_dotenv()
 
@@ -13,7 +13,7 @@ st.set_page_config(page_title="Research Paper Agent", page_icon="📑", layout="
 # --- Session state init (shared with New Paper page) ---
 defaults = {
     "thread_id": str(uuid.uuid4()),
-    "checkpointer": MemorySaver(),
+    "checkpointer": get_checkpointer(),
     "vectorstore": None,
     "indexed_files": [],
     "mode": "survey",
@@ -118,7 +118,7 @@ for col, mode in zip(cols, MODES):
                 st.session_state.mode = mode["key"]
                 # Reset paper state so a fresh paper starts cleanly
                 st.session_state.thread_id = str(uuid.uuid4())
-                st.session_state.checkpointer = MemorySaver()
+                st.session_state.checkpointer = get_checkpointer()
                 st.session_state.pending_checkpoint = None
                 st.session_state.run_started = False
                 st.session_state.trace = []

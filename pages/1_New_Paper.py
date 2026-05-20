@@ -4,7 +4,7 @@ import uuid
 
 import streamlit as st
 from dotenv import load_dotenv
-from langgraph.checkpoint.memory import MemorySaver
+from agent.checkpointer import get_checkpointer
 
 from agent.graph import DEFAULT_MODEL, build_graph
 from agent.state import Section, Source, TokenUsage
@@ -16,7 +16,7 @@ st.set_page_config(page_title="New Paper · Research Paper Agent", page_icon="�
 # --- Session state init (shared with dashboard) ---
 defaults = {
     "thread_id": str(uuid.uuid4()),
-    "checkpointer": MemorySaver(),
+    "checkpointer": get_checkpointer(),
     "vectorstore": None,
     "indexed_files": [],
     "mode": "survey",
@@ -49,7 +49,7 @@ with st.sidebar:
         for k, v in defaults.items():
             st.session_state[k] = v if not callable(v) else v
         st.session_state.thread_id = str(uuid.uuid4())
-        st.session_state.checkpointer = MemorySaver()
+        st.session_state.checkpointer = get_checkpointer()
         st.rerun()
 
     if st.button("← Back to dashboard", use_container_width=True):
