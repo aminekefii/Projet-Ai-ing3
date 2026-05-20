@@ -226,8 +226,22 @@ elif st.session_state.run_started:
     final = snapshot.values.get("final_output")
     if final:
         st.success("📑 Paper complete")
-        st.download_button("⬇️ Download Markdown", final,
-                           file_name="paper.md", mime="text/markdown")
+        col_md, col_pdf = st.columns(2)
+        col_md.download_button(
+            "⬇️ Download Markdown", final,
+            file_name="paper.md", mime="text/markdown",
+            use_container_width=True,
+        )
+        try:
+            from agent.export_pdf import markdown_to_pdf_bytes
+            pdf_bytes = markdown_to_pdf_bytes(final)
+            col_pdf.download_button(
+                "📄 Download PDF", pdf_bytes,
+                file_name="paper.pdf", mime="application/pdf",
+                use_container_width=True,
+            )
+        except Exception as e:
+            col_pdf.warning(f"PDF export unavailable: {e}")
         with st.expander("Preview", expanded=True):
             st.markdown(final)
 else:
