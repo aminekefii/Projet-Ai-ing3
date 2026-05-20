@@ -60,3 +60,4 @@ class PaperState(TypedDict, total=False):
     forced_review_issues: list  # ReviewIssue[] — populated by drafter, consumed by reviewer
     analysis_results: dict  # {stat_name: value} — populated by data_analyzer
     tool_calls: list  # [{tool, input}, ...] — populated by researcher for UI trace
+    paper_title: str  # populated at Checkpoint 3; finalize falls back to topic when missing

@@ -36,8 +36,9 @@ def finalize_node(state: PaperState) -> dict:
         f"- **[{sid}]** {_format_reference(sources_by_id[sid])}"
         for sid in cited_ids_in_order if sid in sources_by_id
     )
+    title = state.get("paper_title") or state["topic"]
     paper = (
-        f"# {state['topic']}\n\n"
+        f"# {title}\n\n"
         f"{sections_md}\n\n"
         f"## References\n\n{refs_md}\n"
     )
