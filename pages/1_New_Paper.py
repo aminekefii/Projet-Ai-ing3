@@ -73,6 +73,16 @@ with st.sidebar:
         else:
             st.session_state.vectorstore = vs
             st.session_state.indexed_files = summary
+            # Persist blobs to Supabase Storage so they survive a restart.
+            upload_failures = []
+            for f in uploaded:
+                try:
+                    db.upload_file(st.session_state.thread_id, f)
+                except Exception as e:
+                    upload_failures.append((f.name, str(e)))
+            if upload_failures:
+                for name, err in upload_failures:
+                    st.warning(f"Could not save '{name}' to Storage: {err}")
             st.success(f"Indexed {len(summary)} file(s).")
 
     if st.session_state.indexed_files:
