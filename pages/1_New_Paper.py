@@ -44,6 +44,12 @@ MODE_LABELS = {
 }
 
 
+# Hide Streamlit's auto-generated multipage nav (we use custom buttons).
+st.markdown(
+    "<style>[data-testid='stSidebarNav']{display:none;}</style>",
+    unsafe_allow_html=True,
+)
+
 # --- Sidebar ---
 with st.sidebar:
     st.title("⚙️ Settings")

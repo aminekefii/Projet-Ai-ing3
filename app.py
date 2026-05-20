@@ -33,6 +33,12 @@ if st.session_state.checkpointer is None:
         st.error(f"Supabase env error: {e} — see .env.example")
         st.stop()
 
+# Hide Streamlit's auto-generated multipage nav (we use custom buttons).
+st.markdown(
+    "<style>[data-testid='stSidebarNav']{display:none;}</style>",
+    unsafe_allow_html=True,
+)
+
 # --- Sidebar ---
 with st.sidebar:
     st.title("⚙️ Settings")
