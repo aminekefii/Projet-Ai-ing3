@@ -6,10 +6,12 @@ import streamlit as st
 from dotenv import load_dotenv
 from agent.checkpointer import get_checkpointer
 from agent import db
+from agent.claude_theme import inject_global_styles
 
 load_dotenv()
 
 st.set_page_config(page_title="Research Paper Agent", page_icon="📑", layout="wide")
+inject_global_styles()
 
 # --- Session state init (shared with New Paper page) ---
 defaults = {

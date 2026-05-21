@@ -10,10 +10,12 @@ from agent import db
 
 from agent.graph import DEFAULT_MODEL, build_graph
 from agent.state import Section, Source, TokenUsage
+from agent.claude_theme import inject_global_styles
 
 load_dotenv()
 
 st.set_page_config(page_title="New Paper · Research Paper Agent", page_icon="📑", layout="wide")
+inject_global_styles()
 
 # --- Session state init (shared with dashboard) ---
 defaults = {
