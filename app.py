@@ -21,6 +21,7 @@ defaults = {
     "pending_checkpoint": None,
     "run_started": False,
     "trace": [],
+    "file_choice": None,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -140,6 +141,7 @@ for col, mode in zip(cols, MODES):
                 st.session_state.pending_checkpoint = None
                 st.session_state.run_started = False
                 st.session_state.trace = []
+                st.session_state.file_choice = None
                 st.switch_page("pages/1_New_Paper.py")
 
 st.divider()

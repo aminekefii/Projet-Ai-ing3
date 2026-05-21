@@ -25,6 +25,7 @@ defaults = {
     "pending_checkpoint": None,
     "run_started": False,
     "trace": [],
+    "file_choice": None,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
