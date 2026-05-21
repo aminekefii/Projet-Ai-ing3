@@ -121,6 +121,7 @@ def file_choice_dialog():
                         db.upload_file(st.session_state.thread_id, f)
                     except Exception as e:
                         st.warning(f"Could not save '{f.name}' to Storage: {e}")
+                st.success(f"Indexed {len(summary)} file(s).")
                 st.session_state.file_choice = "yes"
                 st.session_state.pop("dialog_step", None)
                 st.rerun()
@@ -460,6 +461,7 @@ if resume_id:
     st.session_state.pop("title_input", None)
     st.session_state.pop("title_suggestions", None)
     st.session_state.pop("pending_title", None)
+    st.session_state.pop("dialog_step", None)
     for _k in [_k for _k in st.session_state if _k.startswith("draft_")]:
         st.session_state.pop(_k)
 
