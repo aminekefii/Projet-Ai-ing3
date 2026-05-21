@@ -464,6 +464,7 @@ if resume_id:
 
     # Re-download persisted files and rebuild FAISS in-memory.
     file_rows = db.list_paper_files(resume_id)
+    st.session_state.file_choice = "yes" if file_rows else "no"
     if file_rows:
         from agent.rag import index_uploaded_files
 
