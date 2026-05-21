@@ -34,16 +34,16 @@ import streamlit as st
 
 
 _PALETTE = {
-    "cream":     "#FAF9F5",
-    "parchment": "#F0EEE6",
-    "linen":     "#E8E6DC",
-    "ink":       "#1F1E1D",
-    "graphite":  "#5B5A57",
-    "mist":      "#8C8B86",
-    "coral":     "#CC785C",
-    "coral_dim": "#B8674C",
-    "coral_soft":"rgba(204, 120, 92, 0.10)",
-    "deep":      "#30302E",
+    "cream":      "#FAF9F5",
+    "parchment":  "#F0EEE6",
+    "sidebar_bg": "#EFEBDD",
+    "linen":      "#E8E6DC",
+    "ink":        "#1F1E1D",
+    "graphite":   "#5B5A57",
+    "mist":       "#8C8B86",
+    "coral":      "#CC785C",
+    "coral_dim":  "#B8674C",
+    "coral_soft": "rgba(204, 120, 92, 0.10)",
 }
 
 
@@ -70,16 +70,16 @@ def _build_css() -> str:
     return f"""
 /* Claude-style core tokens */
 :root {{
-    --cream:      {p['cream']};
-    --parchment:  {p['parchment']};
-    --linen:      {p['linen']};
-    --ink:        {p['ink']};
-    --graphite:   {p['graphite']};
-    --mist:       {p['mist']};
-    --coral:      {p['coral']};
-    --coral-dim:  {p['coral_dim']};
-    --coral-soft: {p['coral_soft']};
-    --deep:       {p['deep']};
+    --cream:       {p['cream']};
+    --parchment:   {p['parchment']};
+    --sidebar-bg:  {p['sidebar_bg']};
+    --linen:       {p['linen']};
+    --ink:         {p['ink']};
+    --graphite:    {p['graphite']};
+    --mist:        {p['mist']};
+    --coral:       {p['coral']};
+    --coral-dim:   {p['coral_dim']};
+    --coral-soft:  {p['coral_soft']};
     --display:    'Source Serif 4', 'Iowan Old Style', Georgia, serif;
     --body:       'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --mono:       'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -98,10 +98,9 @@ html, body, [data-testid="stAppViewContainer"], .stApp {{
     -webkit-font-smoothing: antialiased;
 }}
 
-/* Hide ONLY the auto-generated multipage nav — keep the top toolbar
-   (hamburger / theme toggle) visible. */
+/* Hide ONLY the auto-generated multipage nav — leave the top toolbar
+   (hamburger / theme toggle / etc.) entirely untouched. */
 [data-testid="stSidebarNav"] {{ display: none !important; }}
-header[data-testid="stHeader"] {{ background: transparent !important; }}
 
 /* Typography */
 h1, h2, h3, h4 {{
@@ -206,35 +205,37 @@ code, kbd, pre, [data-testid="stCode"] {{
     font-size: 0.96rem !important;
 }}
 
-/* Sidebar */
+/* Sidebar — warm light beige, just slightly darker than the page,
+   keeping the same ink-on-cream language as the main panel. */
 [data-testid="stSidebar"] {{
-    background: var(--deep) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-}}
-[data-testid="stSidebar"] * {{
-    color: var(--cream) !important;
+    background: var(--sidebar-bg) !important;
+    border-right: 1px solid var(--linen);
 }}
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3 {{
-    color: var(--cream) !important;
+    color: var(--ink);
     font-family: var(--display) !important;
     font-weight: 500;
 }}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li {{
+    color: var(--ink);
+}}
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {{
-    color: rgba(250, 249, 245, 0.50) !important;
+    color: var(--mist) !important;
 }}
 [data-testid="stSidebar"] hr {{
-    border-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: var(--linen) !important;
 }}
 [data-testid="stSidebar"] .stButton > button {{
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--cream);
-    border-color: rgba(255, 255, 255, 0.12);
+    background: var(--cream);
+    color: var(--ink);
+    border-color: var(--linen);
 }}
 [data-testid="stSidebar"] .stButton > button:hover {{
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(255, 255, 255, 0.22);
+    background: var(--parchment);
+    border-color: var(--mist);
 }}
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {{
     background: var(--coral);
@@ -243,23 +244,24 @@ code, kbd, pre, [data-testid="stCode"] {{
 }}
 [data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {{
     background: var(--coral-dim);
+    color: var(--cream);
     border-color: var(--coral-dim);
 }}
 [data-testid="stSidebar"] .stTextInput input,
 [data-testid="stSidebar"] .stTextArea textarea {{
-    background: rgba(255, 255, 255, 0.05) !important;
-    border-color: rgba(255, 255, 255, 0.15) !important;
-    color: var(--cream) !important;
+    background: var(--cream) !important;
+    border-color: var(--linen) !important;
+    color: var(--ink) !important;
 }}
 [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {{
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px dashed rgba(255, 255, 255, 0.18) !important;
+    background: var(--cream) !important;
+    border: 1px dashed var(--mist) !important;
     border-radius: var(--radius) !important;
-    color: var(--cream) !important;
+    color: var(--ink) !important;
 }}
 [data-testid="stSidebar"] [data-testid="stAlert"] {{
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: var(--cream) !important;
+    border: 1px solid var(--linen) !important;
     border-radius: var(--radius) !important;
     box-shadow: none !important;
 }}
