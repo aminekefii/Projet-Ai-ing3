@@ -169,6 +169,7 @@ with st.sidebar:
         st.session_state.pop("title_input", None)
         st.session_state.pop("title_suggestions", None)
         st.session_state.pop("pending_title", None)
+        st.session_state.pop("dialog_step", None)
         for _k in [_k for _k in st.session_state if _k.startswith("draft_")]:
             st.session_state.pop(_k)
         st.rerun()
