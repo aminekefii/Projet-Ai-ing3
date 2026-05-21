@@ -504,6 +504,14 @@ if resume_id:
         st.session_state.pending_checkpoint = snapshot.next[0]
 
 
+# --- Reference-file gate ---
+# Block the chat input until the user commits to a Yes/No choice (or, for
+# empirical mode, has uploaded data). Resume sets file_choice up-front.
+if not st.session_state.run_started and st.session_state.file_choice is None:
+    file_choice_dialog()
+    st.stop()
+
+
 # --- Main flow ---
 render_trace()
 
