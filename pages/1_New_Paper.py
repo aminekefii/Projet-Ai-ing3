@@ -196,38 +196,39 @@ with st.sidebar:
                     st.session_state.resume_paper_id = p["id"]
                     st.rerun()
 
-    st.divider()
-    st.markdown("### 📄 Readings / data")
-    uploaded = st.file_uploader(
-        "Upload PDF or TXT (CSV for empirical mode)",
-        type=["pdf", "txt", "csv"],
-        accept_multiple_files=True,
-        label_visibility="collapsed",
-    )
-    if uploaded and st.button("📚 Index", use_container_width=True):
-        from agent.rag import index_uploaded_files
-        with st.spinner("Indexing…"):
-            vs, summary = index_uploaded_files(uploaded)
-        if vs is None:
-            st.warning("No usable text extracted.")
-        else:
-            st.session_state.vectorstore = vs
-            st.session_state.indexed_files = summary
-            # Persist blobs to Supabase Storage so they survive a restart.
-            upload_failures = []
-            for f in uploaded:
-                try:
-                    db.upload_file(st.session_state.thread_id, f)
-                except Exception as e:
-                    upload_failures.append((f.name, str(e)))
-            if upload_failures:
-                for name, err in upload_failures:
-                    st.warning(f"Could not save '{name}' to Storage: {err}")
-            st.success(f"Indexed {len(summary)} file(s).")
+    if st.session_state.file_choice != "no":
+        st.divider()
+        st.markdown("### 📄 Readings / data")
+        uploaded = st.file_uploader(
+            "Upload PDF or TXT (CSV for empirical mode)",
+            type=["pdf", "txt", "csv"],
+            accept_multiple_files=True,
+            label_visibility="collapsed",
+        )
+        if uploaded and st.button("📚 Index", use_container_width=True):
+            from agent.rag import index_uploaded_files
+            with st.spinner("Indexing…"):
+                vs, summary = index_uploaded_files(uploaded)
+            if vs is None:
+                st.warning("No usable text extracted.")
+            else:
+                st.session_state.vectorstore = vs
+                st.session_state.indexed_files = summary
+                # Persist blobs to Supabase Storage so they survive a restart.
+                upload_failures = []
+                for f in uploaded:
+                    try:
+                        db.upload_file(st.session_state.thread_id, f)
+                    except Exception as e:
+                        upload_failures.append((f.name, str(e)))
+                if upload_failures:
+                    for name, err in upload_failures:
+                        st.warning(f"Could not save '{name}' to Storage: {err}")
+                st.success(f"Indexed {len(summary)} file(s).")
 
-    if st.session_state.indexed_files:
-        for name, n in st.session_state.indexed_files:
-            st.caption(f"• `{name}` — {n} chunks")
+        if st.session_state.indexed_files:
+            for name, n in st.session_state.indexed_files:
+                st.caption(f"• `{name}` — {n} chunks")
 
     st.divider()
     st.caption(f"Thread: `{st.session_state.thread_id[:8]}…`")
