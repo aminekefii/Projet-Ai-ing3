@@ -57,22 +57,30 @@ with st.sidebar:
 st.title("📑 Research Paper Agent")
 st.caption("Multi-agent academic writing assistant — researcher → drafter → reviewer, with human checkpoints.")
 
-# CSS: make each mode card's inner block a flex column so the Start button
-# sits at the bottom regardless of how much bullet text precedes it.
-st.markdown(
+# CSS: pin each mode card's Start button to the bottom so all three buttons
+# line up at the same vertical position across the row. Needs flex+height
+# applied at every level of the wrapper chain — the previous shorter
+# version only flex'd the inner block, but Streamlit's intermediate
+# wrapper div has no height set, so the flex didn't propagate down.
+st.html(
     """
     <style>
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        display: flex;
+        flex-direction: column;
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] > div:first-child,
     [data-testid="stVerticalBlockBorderWrapper"] > div:first-child > [data-testid="stVerticalBlock"] {
         display: flex;
         flex-direction: column;
+        flex: 1 1 auto;
         height: 100%;
     }
-    [data-testid="stVerticalBlockBorderWrapper"] > div:first-child > [data-testid="stVerticalBlock"] > div:last-child {
+    [data-testid="stVerticalBlockBorderWrapper"] > div:first-child > [data-testid="stVerticalBlock"] > [data-testid="element-container"]:last-child {
         margin-top: auto;
     }
     </style>
-    """,
-    unsafe_allow_html=True,
+    """
 )
 
 st.markdown("## Start creating your paper")
