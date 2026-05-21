@@ -6,7 +6,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from agent.checkpointer import get_checkpointer
 from agent import db
-from agent.claude_theme import inject_global_styles
+from agent.claude_theme import inject_global_styles, render_theme_toggle
 
 load_dotenv()
 
@@ -52,6 +52,7 @@ with st.sidebar:
         st.error("OPENAI_API_KEY missing — set it in .env")
 
     st.divider()
+    render_theme_toggle()
     st.caption(f"Thread: `{st.session_state.thread_id[:8]}…`")
 
 

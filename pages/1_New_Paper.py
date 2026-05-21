@@ -10,7 +10,7 @@ from agent import db
 
 from agent.graph import DEFAULT_MODEL, build_graph
 from agent.state import Section, Source, TokenUsage
-from agent.claude_theme import inject_global_styles
+from agent.claude_theme import inject_global_styles, render_theme_toggle
 
 load_dotenv()
 
@@ -234,6 +234,7 @@ with st.sidebar:
                 st.caption(f"• `{name}` — {n} chunks")
 
     st.divider()
+    render_theme_toggle()
     st.caption(f"Thread: `{st.session_state.thread_id[:8]}…`")
 
 

@@ -33,7 +33,7 @@ from __future__ import annotations
 import streamlit as st
 
 
-_PALETTE = {
+_PALETTE_LIGHT = {
     "cream":      "#FAF9F5",
     "parchment":  "#F0EEE6",
     "sidebar_bg": "#EFEBDD",
@@ -46,6 +46,25 @@ _PALETTE = {
     "coral_soft": "rgba(204, 120, 92, 0.10)",
 }
 
+_PALETTE_DARK = {
+    "cream":      "#262624",  # page background (warm near-black)
+    "parchment":  "#2E2D2A",  # hover ground, slightly lighter
+    "sidebar_bg": "#1F1E1C",  # sidebar, slightly darker
+    "linen":      "#3A3935",  # subtle borders
+    "ink":        "#F0EEE6",  # primary text
+    "graphite":   "#B5B2A8",  # secondary text
+    "mist":       "#8C8B86",  # muted captions
+    "coral":      "#D88A6E",  # accent slightly brighter on dark
+    "coral_dim":  "#CC785C",
+    "coral_soft": "rgba(216, 138, 110, 0.14)",
+}
+
+
+def _current_palette() -> dict:
+    """Pick palette based on st.session_state.theme_mode (defaults to light)."""
+    mode = st.session_state.get("theme_mode", "light") if hasattr(st, "session_state") else "light"
+    return _PALETTE_DARK if mode == "dark" else _PALETTE_LIGHT
+
 
 _GOOGLE_FONTS_IMPORT = (
     "@import url('https://fonts.googleapis.com/css2"
@@ -57,7 +76,12 @@ _GOOGLE_FONTS_IMPORT = (
 
 
 def inject_global_styles() -> None:
-    """Emit a single <style> block defining the Claude-style theme."""
+    """Emit a single <style> block defining the Claude-style theme.
+
+    Reads st.session_state.theme_mode ('light' or 'dark') to pick the
+    palette. Both variants use identical CSS rules — only the color
+    tokens change.
+    """
     payload = "<style>" + _GOOGLE_FONTS_IMPORT + _build_css() + "</style>"
     if hasattr(st, "html"):
         st.html(payload)
@@ -65,8 +89,27 @@ def inject_global_styles() -> None:
         st.markdown(payload, unsafe_allow_html=True)
 
 
+def render_theme_toggle(label: str = "Dark mode") -> None:
+    """Render a dark-mode toggle inside the current sidebar/container.
+
+    Persists the choice in st.session_state.theme_mode and reruns the
+    page so the new palette is picked up by inject_global_styles().
+    """
+    if "theme_mode" not in st.session_state:
+        st.session_state.theme_mode = "light"
+    is_dark = st.toggle(
+        label,
+        value=(st.session_state.theme_mode == "dark"),
+        key="_dark_mode_toggle",
+    )
+    desired = "dark" if is_dark else "light"
+    if st.session_state.theme_mode != desired:
+        st.session_state.theme_mode = desired
+        st.rerun()
+
+
 def _build_css() -> str:
-    p = _PALETTE
+    p = _current_palette()
     return f"""
 /* Claude-style core tokens */
 :root {{
