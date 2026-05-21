@@ -61,7 +61,7 @@ def make_researcher_node(llm, vectorstore=None):
         sub_agent = create_react_agent(
             model=llm,
             tools=tools,
-            prompt=get_researcher_prompt(state["mode"]),
+            prompt=get_researcher_prompt(state["mode"], has_documents=(vectorstore is not None)),
         )
         trace = _ToolTraceHandler()
         invoke_config = {"callbacks": [trace]}

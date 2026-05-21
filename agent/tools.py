@@ -60,11 +60,12 @@ def _make_document_search(vectorstore):
 
     @tool
     def document_search(query: str) -> str:
-        """Search the user's uploaded documents (PDF/TXT) for relevant passages.
-        Use this first whenever the question references "the document", "my files",
-        or topics the uploaded documents likely cover. Returns the most relevant
-        passages with source filename and page number for citation.
-        Input: a natural-language query."""
+        """Search the student's uploaded readings (PDFs, notes, primary sources) for passages
+        relevant to a topic or section. Use whenever the student has provided their own
+        materials and the current task could benefit from them — this is the case for
+        every section of a paper when documents are uploaded. Returns passages with
+        filename and page number for citation.
+        Input: a natural-language query, typically a section title + key terms."""
         try:
             results = vectorstore.similarity_search(query, k=4)
             return format_results(results)

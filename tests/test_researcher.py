@@ -38,3 +38,21 @@ def test_parse_sources_payload_strips_markdown_fence():
     payload = '```json\n[{"id": "src-1", "title": "t", "url": "u", "origin_tool": "arxiv"}]\n```'
     sources = parse_sources_payload(payload)
     assert len(sources) == 1
+
+
+def test_researcher_prompt_includes_docs_addendum_when_has_documents():
+    from agent.prompts import get_researcher_prompt
+    p = get_researcher_prompt("survey", has_documents=True)
+    assert "DOCUMENTS UPLOADED" in p
+
+
+def test_researcher_prompt_omits_docs_addendum_by_default():
+    from agent.prompts import get_researcher_prompt
+    p = get_researcher_prompt("survey")
+    assert "DOCUMENTS UPLOADED" not in p
+
+
+def test_researcher_prompt_omits_docs_addendum_when_has_documents_false():
+    from agent.prompts import get_researcher_prompt
+    p = get_researcher_prompt("survey", has_documents=False)
+    assert "DOCUMENTS UPLOADED" not in p

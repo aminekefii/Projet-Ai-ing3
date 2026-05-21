@@ -59,9 +59,22 @@ of source objects. Each object: \
 Hard limits: ≤ 15 sources, ≤ 12 tool calls total. Dedupe by URL. Number IDs sequentially: src-1, src-2…"""
 
 
-def get_researcher_prompt(mode: str) -> str:
+RESEARCHER_DOCS_ADDENDUM = """
+
+DOCUMENTS UPLOADED: the student has uploaded reference material. The `document_search` tool is available and returns passages with filename + page number.
+
+REQUIREMENTS when documents are uploaded:
+1. Call `document_search` at least once per outline section, using the section title and bullets as query terms.
+2. Include every topically relevant passage as a `Source` entry with `origin_tool: "document_search"`, `title: <filename>`, `url: null`, and a snippet that quotes the relevant 1-2 sentences.
+3. After exhausting the uploaded material, fill the rest of the source pack from web/arxiv/wikipedia."""
+
+
+def get_researcher_prompt(mode: str, has_documents: bool = False) -> str:
     from .modes import get_profile
-    return RESEARCHER_SYSTEM + "\n\n" + get_profile(mode).researcher_addendum
+    base = RESEARCHER_SYSTEM
+    if has_documents:
+        base = base + RESEARCHER_DOCS_ADDENDUM
+    return base + "\n\n" + get_profile(mode).researcher_addendum
 
 
 DRAFTER_SYSTEM = """You are the Drafter in a multi-agent academic paper team.
