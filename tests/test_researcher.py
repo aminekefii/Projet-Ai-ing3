@@ -56,3 +56,15 @@ def test_researcher_prompt_omits_docs_addendum_when_has_documents_false():
     from agent.prompts import get_researcher_prompt
     p = get_researcher_prompt("survey", has_documents=False)
     assert "DOCUMENTS UPLOADED" not in p
+
+
+def test_drafter_prompt_includes_docs_addendum_when_has_documents():
+    from agent.prompts import get_drafter_prompt
+    p = get_drafter_prompt("survey", has_documents=True)
+    assert "REFERENCE PASSAGES" in p
+
+
+def test_drafter_prompt_omits_docs_addendum_by_default():
+    from agent.prompts import get_drafter_prompt
+    p = get_drafter_prompt("survey")
+    assert "REFERENCE PASSAGES" not in p

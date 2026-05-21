@@ -92,9 +92,17 @@ HARD RULES:
 5. Output ONLY the section body in Markdown. No section heading, no preamble, no postamble."""
 
 
-def get_drafter_prompt(mode: str) -> str:
+DRAFTER_DOCS_ADDENDUM = """
+
+REFERENCE PASSAGES: when a REFERENCE PASSAGES block is supplied in the user message, those passages come from the student's own uploaded readings. Quote or paraphrase from them with inline citations in the format `(filename, page N)`. Treat them as first-class evidence alongside the source pack — they exist precisely because the student uploaded them and expects them to inform the draft."""
+
+
+def get_drafter_prompt(mode: str, has_documents: bool = False) -> str:
     from .modes import get_profile
-    return DRAFTER_SYSTEM + "\n\n" + get_profile(mode).drafter_addendum
+    base = DRAFTER_SYSTEM
+    if has_documents:
+        base = base + DRAFTER_DOCS_ADDENDUM
+    return base + "\n\n" + get_profile(mode).drafter_addendum
 
 
 REVIEWER_SYSTEM = """You are the Reviewer in a multi-agent academic paper team.
