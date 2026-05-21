@@ -6,13 +6,32 @@ import json
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..prompts import get_drafter_prompt
+from ..rag import format_results
 from ..state import PaperState, ReviewIssue
 from ..validators import find_missing_citations
 
+REFERENCE_K = 4
 
-def make_drafter_node(llm):
+
+def _retrieve_reference_block(vectorstore, section) -> str:
+    if vectorstore is None:
+        return ""
+    query = f"{section.title}: {', '.join(section.bullets)}" if section.bullets else section.title
+    try:
+        docs = vectorstore.similarity_search(query, k=REFERENCE_K)
+    except Exception:
+        return ""
+    if not docs:
+        return ""
+    return (
+        "\n\nREFERENCE PASSAGES (from uploaded readings — cite as filename (page N) inline):\n"
+        + format_results(docs)
+    )
+
+
+def make_drafter_node(llm, vectorstore=None):
     def drafter_node(state: PaperState) -> dict:
-        profile_prompt = get_drafter_prompt(state["mode"])
+        profile_prompt = get_drafter_prompt(state["mode"], has_documents=(vectorstore is not None))
         source_pack = [s.model_dump() for s in state["sources"]]
         known_ids = {s.id for s in state["sources"]}
         is_revision = (state.get("review") is not None
@@ -39,6 +58,8 @@ def make_drafter_node(llm):
                 prior_section = state.get("draft", {}).get(section.title, "")
                 issues_block += f"\n\nPREVIOUS DRAFT OF THIS SECTION:\n{prior_section}"
 
+            reference_block = _retrieve_reference_block(vectorstore, section)
+
             user_msg = (
                 f"SECTION TO DRAFT:\n"
                 f"Title: {section.title}\n"
@@ -47,6 +68,7 @@ def make_drafter_node(llm):
                 f"SOURCE PACK:\n{json.dumps(source_pack, indent=2)}\n\n"
                 f"DRAFT SO FAR:\n{prior}"
                 f"{issues_block}"
+                f"{reference_block}"
             )
             resp = llm.invoke([
                 SystemMessage(content=profile_prompt),
