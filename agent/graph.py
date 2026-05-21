@@ -50,7 +50,7 @@ def build_graph(
     builder.add_node("intake", lambda s: intake_node(s, llm))
     builder.add_node("data_analyzer", make_data_analyzer_node(llm))
     builder.add_node("researcher", make_researcher_node(llm, vectorstore=vectorstore))
-    builder.add_node("drafter", make_drafter_node(llm))
+    builder.add_node("drafter", make_drafter_node(llm, vectorstore=vectorstore))
     builder.add_node("reviewer", make_reviewer_node(llm))
     builder.add_node("finalize", finalize_node)
 
