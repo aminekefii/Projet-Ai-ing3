@@ -45,6 +45,103 @@ MODE_LABELS = {
 }
 
 
+@st.dialog("Reference material", width="large")
+def file_choice_dialog():
+    """Gate the chat input on whether the user has a reference file.
+
+    Survey/Term: Yes/No → optional upload. Empirical: upload-required.
+    On commit, sets st.session_state.file_choice to "yes" or "no" and pops
+    dialog_step so the gate stops re-opening the modal.
+    """
+    from agent.ui_helpers import initial_dialog_step
+
+    if "dialog_step" not in st.session_state:
+        st.session_state.dialog_step = initial_dialog_step(st.session_state.mode)
+
+    if st.session_state.dialog_step == "ask":
+        st.markdown("**Do you have a file you'd like to use as a reference?**")
+        st.caption("PDFs, TXT, or CSV are supported. You can also add files later from the sidebar.")
+        c1, c2 = st.columns(2)
+        if c1.button("✅ Yes, I have a file", use_container_width=True, type="primary"):
+            st.session_state.dialog_step = "upload"
+            st.rerun()
+        if c2.button("💬 No, start chat directly", use_container_width=True):
+            st.session_state.file_choice = "no"
+            st.session_state.pop("dialog_step", None)
+            st.rerun()
+        st.divider()
+        if st.button("← Cancel and pick a different mode", key="dialog_cancel_ask"):
+            try:
+                db.delete_paper(st.session_state.thread_id)
+            except Exception:
+                pass
+            st.session_state.pop("dialog_step", None)
+            st.session_state.file_choice = None
+            st.switch_page("app.py")
+
+    elif st.session_state.dialog_step == "upload":
+        if st.session_state.mode == "empirical":
+            st.markdown("**Upload your data file.**")
+            st.caption("Empirical papers are built around your own data — please upload a CSV, PDF, or TXT to continue.")
+        else:
+            st.markdown("**Upload your reference file(s).**")
+            st.caption("PDFs, TXT, or CSV are supported.")
+
+        uploaded = st.file_uploader(
+            "Files",
+            type=["pdf", "txt", "csv"],
+            accept_multiple_files=True,
+            label_visibility="collapsed",
+            key="dialog_uploader",
+        )
+        index_disabled = not uploaded
+        if st.session_state.mode == "empirical":
+            col_idx, = st.columns(1)
+            col_back = None
+        else:
+            col_idx, col_back = st.columns([3, 1])
+
+        if col_idx.button(
+            "📚 Index",
+            use_container_width=True,
+            type="primary",
+            disabled=index_disabled,
+            key="dialog_index",
+        ):
+            from agent.rag import index_uploaded_files
+            with st.spinner("Indexing…"):
+                vs, summary = index_uploaded_files(uploaded)
+            if vs is None:
+                st.warning("No usable text extracted — try a different file.")
+            else:
+                st.session_state.vectorstore = vs
+                st.session_state.indexed_files = summary
+                for f in uploaded:
+                    try:
+                        db.upload_file(st.session_state.thread_id, f)
+                    except Exception as e:
+                        st.warning(f"Could not save '{f.name}' to Storage: {e}")
+                st.session_state.file_choice = "yes"
+                st.session_state.pop("dialog_step", None)
+                st.rerun()
+
+        if col_back is not None:
+            if col_back.button("← Back", use_container_width=True, key="dialog_back"):
+                st.session_state.dialog_step = "ask"
+                st.rerun()
+
+        if st.session_state.mode == "empirical":
+            st.divider()
+            if st.button("← Cancel and pick a different mode", key="dialog_cancel_upload"):
+                try:
+                    db.delete_paper(st.session_state.thread_id)
+                except Exception:
+                    pass
+                st.session_state.pop("dialog_step", None)
+                st.session_state.file_choice = None
+                st.switch_page("app.py")
+
+
 # Hide Streamlit's auto-generated multipage nav (we use custom buttons).
 st.markdown(
     "<style>[data-testid='stSidebarNav']{display:none;}</style>",
